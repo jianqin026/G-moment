@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>超级海鸥 · 扁平化 UI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --soda-blue: #87D4F9;
+            --iced-lemon: #FFE5A9;
+            --watermelon: #A4E268;
+            --coast-sunset: #F9C68A;
+            --air-conditioner: #C0DAFF;
+            --icecream-pink: #FFD6E0;
+            --ocean-mint: #A8E6E6;
+            --beach-shell: #FFD5C8;
+            --super-seagull: #9AD3DE;
+            --text-dark: #2D3748;
+            --text-medium: #4A5568;
+            --text-light: #718096;
+            --bg-white: #FFFFFF;
+            --bg-cream: #FFFBF5;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-cream);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        /* 导航 */
+        nav {
+            background: var(--bg-white);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--ocean-mint);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--super-seagull);
+            letter-spacing: 2px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-medium);
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--soda-blue);
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Hero 区域 */
+        .hero {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: var(--air-conditioner);
+            margin: 2rem 0;
+            border-radius: 0;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 1rem;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            color: var(--text-medium);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* 色卡展示 */
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 3rem 0 1.5rem;
+            color: var(--text-dark);
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .color-card {
+            background: var(--bg-white);
+            overflow: hidden;
+        }
+
+        .color-swatch {
+            height: 120px;
+            width: 100%;
+        }
+
+        .color-info {
+            padding: 1rem;
+        }
+
+        .color-name {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .color-name-cn {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-bottom: 0.5rem;
+        }
+
+        .color-hex {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: var(--text-medium);
+            background: var(--bg-cream);
+            padding: 0.25rem 0.5rem;
+            display: inline-block;
+        }
+
+        /* UI 组件展示 */
+        .components-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .component-block {
+            background: var(--bg-white);
+            padding: 2rem;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .component-block:hover {
+            border-color: var(--super-seagull);
+        }
+
+        .component-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--text-dark);
+        }
+
+        /* 按钮 */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+        }
+
+        .btn-primary {
+            background: var(--soda-blue);
+            color: var(--text-dark);
+        }
+
+        .btn-primary:hover {
+            background: #6BC4F0;
+        }
+
+        .btn-secondary {
+            background: var(--iced-lemon);
+            color: var(--text-dark);
+        }
+
+        .btn-secondary:hover {
+            background: #FFD980;
+        }
+
+        .btn-success {
+            background: var(--watermelon);
+            color: var(--text-dark);
+        }
+
+        .btn-success:hover {
+            background: #8FD44F;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--super-seagull);
+            color: var(--text-dark);
+        }
+
+        .btn-outline:hover {
+            background: var(--super-seagull);
+            color: var(--text-dark);
+        }
+
+        /* 标签 */
+        .tag {
+            display: inline-block;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin: 0.25rem;
+        }
+
+        .tag-blue { background: var(--soda-blue); }
+        .tag-lemon { background: var(--iced-lemon); }
+        .tag-mint { background: var(--ocean-mint); }
+        .tag-pink { background: var(--icecream-pink); }
+        .tag-shell { background: var(--beach-shell); }
+        .tag-sunset { background: var(--coast-sunset); }
+
+        /* 信息卡片 */
+        .info-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .info-card {
+            padding: 2rem;
+            background: var(--bg-white);
+            border-left: 4px solid var(--super-seagull);
+        }
+
+        .info-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-dark);
+        }
+
+        .info-card p {
+            color: var(--text-medium);
+            font-size: 0.95rem;
+        }
+
+        .info-card:nth-child(2) { border-left-color: var(--soda-blue); }
+        .info-card:nth-child(3) { border-left-color: var(--watermelon); }
+        .info-card:nth-child(4) { border-left-color: var(--coast-sunset); }
+
+        /* 进度条 */
+        .progress-item {
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-medium);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-cream);
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        .fill-blue { background: var(--soda-blue); width: 85%; }
+        .fill-mint { background: var(--ocean-mint); width: 65%; }
+        .fill-pink { background: var(--icecream-pink); width: 45%; }
+        .fill-lemon { background: var(--iced-lemon); width: 92%; }
+
+        /* 列表 */
+        .flat-list {
+            list-style: none;
+        }
+
+        .flat-list li {
+            padding: 1rem;
+            background: var(--bg-white);
+            margin-bottom: 0.5rem;
+            border-left: 3px solid var(--super-seagull);
+            transition: transform 0.2s;
+        }
+
+        .flat-list li:hover {
+            transform: translateX(4px);
+        }
+
+        .flat-list li:nth-child(2) { border-left-color: var(--soda-blue); }
+        .flat-list li:nth-child(3) { border-left-color: var(--watermelon); }
+        .flat-list li:nth-child(4) { border-left-color: var(--coast-sunset); }
+
+        /* 页脚 */
+        footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            background: var(--super-seagull);
+            color: var(--text-dark);
+            margin-top: 4rem;
+        }
+
+        footer p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        /* 提醒条 */
+        .alert {
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .alert-info { background: var(--air-conditioner); }
+        .alert-success { background: var(--ocean-mint); }
+        .alert-warm { background: var(--iced-lemon); }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; }
+            .nav-links { display: none; }
+            .color-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="logo">超级海鸥</div>
+        <ul class="nav-links">
+            <li><a href="#colors">色卡</a></li>
+            <li><a href="#components">组件</a></li>
+            <li><a href="#cards">卡片</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+
+        <section class="hero">
+            <h1>Super Seagull</h1>
+            <p>夏日阳光灿烂，蓝天映照着海鸥的影子。明快惬意的夏日色彩，描绘出属于假期的自由与闲适。</p>
+        </section>
+
+        <h2 class="section-title" id="colors">配色方案</h2>
+        <div class="color-grid">
+            <div class="color-card">
+                <div class="color-swatch" style="background: #87D4F9;"></div>
+                <div class="color-info">
+                    <div class="color-name">Soda Blue</div>
+                    <div class="color-name-cn">便利店汽水</div>
+                    <span class="color-hex">#87D4F9</span>
+                </div>
+            </div>
+            <div class="color-card">
+                <div class="color-swatch" style="background: #FFE5A9;"></div>
+                <div class="color-info">
+                    <div class="color-name">Iced Lemon</div>
+                    <div class="color-name-cn">冰镇柠檬</div>
+                    <span class="color-hex">#FFE5A9</span>
+                </div>
+            </div>
+            <div class="color-card">
+                <div class="color-swatch" style="background: #A4E268;"></div>
+                <div class="color-info">
+                    <div class="color-name">Watermelon</div>
+                    <div class="color-name-cn">西瓜冰沙</div>
+                    <span class="color-hex">#A4E268</span>
+                </div>
+            </div>
+            <div class="color-card">
+                <div class="color-swatch" style="background: #F9C68A;"></div>
+                <div class="color-info">
+                    <div class="color-name">Coast Sunset</div>
+                    <div class="color-name-cn">海岸黄昏</div>
+                    <span class="color-hex">#F9C68A</span>
+                </div>
+            </div>
+            <div class="color-card">
+                <div class="color-swatch" style="background: #C0DAFF;"></div>
+                <div class="color-info">
+                    <div class="color-name">Air Conditioner</div>
+                    <div class="color-name-cn">空调凉风</div>
+                    <span class="color-hex">#C0DAFF</span>
+                </div>
+            </div>
+            <div class="color-card">
+                <div class="color-swatch" style="background: #FFD6E0;"></div>
+                <div class="color-info">
+                    <div class="color-name">Icecream Pink</div>
+                    <div class="color-name-cn">草莓雪糕</div>
+                    <span class="color-hex">#FFD6E0</span>
+                </div>
+            </div>
+            <div class="color-card">
+                <div class="color-swatch" style="background: #A8E6E6;"></div>
+                <div class="color-info">
+                    <div class="color-name">Ocean Mint</div>
+                    <div class="color-name-cn">海洋薄荷</div>
+                    <span class="color-hex">#A8E6E6</span>
+                </div>
+            </div>
+            <div class="color-card">
+                <div class="color-swatch" style="background: #FFD5C8;"></div>
+                <div class="color-info">
+                    <div class="color-name">Beach Shell</div>
+                    <div class="color-name-cn">沙滩贝壳</div>
+                    <span class="color-hex">#FFD5C8</span>
+                </div>
+            </div>
+            <div class="color-card">
+                <div class="color-swatch" style="background: #9AD3DE;"></div>
+                <div class="color-info">
+                    <div class="color-name">Super Seagull</div>
+                    <div class="color-name-cn">超级海鸥</div>
+                    <span class="color-hex">#9AD3DE</span>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="section-title" id="components">UI 组件</h2>
+        <div class="components-grid">
+            <div class="component-block">
+                <div class="component-title">按钮 Button</div>
+                <button class="btn btn-primary">主要按钮</button>
+                <button class="btn btn-secondary">次要按钮</button>
+                <button class="btn btn-success">成功按钮</button>
+                <button class="btn btn-outline">边框按钮</button>
+            </div>
+
+            <div class="component-block">
+                <div class="component-title">标签 Tag</div>
+                <span class="tag tag-blue">汽水蓝</span>
+                <span class="tag tag-lemon">柠檬黄</span>
+                <span class="tag tag-mint">薄荷绿</span>
+                <span class="tag tag-pink">草莓粉</span>
+                <span class="tag tag-shell">贝壳色</span>
+                <span class="tag tag-sunset">黄昏橙</span>
+            </div>
+
+            <div class="component-block">
+                <div class="component-title">提醒 Alert</div>
+                <div class="alert alert-info">空调凉风般的清爽提示信息</div>
+                <div class="alert alert-success">海洋薄荷般的成功状态</div>
+                <div class="alert alert-warm">冰镇柠檬般的温馨提示</div>
+            </div>
+
+            <div class="component-block">
+                <div class="component-title">进度 Progress</div>
+                <div class="progress-item">
+                    <div class="progress-label"><span>汽水蓝</span><span>85%</span></div>
+                    <div class="progress-bar"><div class="progress-fill fill-blue"></div></div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label"><span>海洋薄荷</span><span>65%</span></div>
+                    <div class="progress-bar"><div class="progress-fill fill-mint"></div></div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label"><span>草莓雪糕</span><span>45%</span></div>
+                    <div class="progress-bar"><div class="progress-fill fill-pink"></div></div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label"><span>冰镇柠檬</span><span>92%</span></div>
+                    <div class="progress-bar"><div class="progress-fill fill-lemon"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="section-title" id="cards">信息卡片</h2>
+        <div class="info-cards">
+            <div class="info-card">
+                <h3>便利店汽水</h3>
+                <p>清凉汽水般的淡蓝色，令人精神一振。适合用于主要操作按钮和关键信息高亮。</p>
+            </div>
+            <div class="info-card">
+                <h3>海洋薄荷</h3>
+                <p>海水与薄荷交织出的清凉色泽，沁人心脾。适合用于成功状态和正向反馈。</p>
+            </div>
+            <div class="info-card">
+                <h3>西瓜冰沙</h3>
+                <p>甜美又清新的西瓜冰沙，散发着淡淡的果香。适合用于标签和分类标识。</p>
+            </div>
+            <div class="info-card">
+                <h3>海岸黄昏</h3>
+                <p>夕阳洒落在沙滩的暖橙色，轻松又舒展。适合用于警告和需要注意的内容。</p>
+            </div>
+        </div>
+
+        <h2 class="section-title">列表</h2>
+        <ul class="flat-list">
+            <li>超级海鸥 — 夏日晴空下飞翔海鸥的背影，纯净而清新</li>
+            <li>便利店汽水 — 清凉汽水般的淡蓝色，令人精神一振</li>
+            <li>西瓜冰沙 — 甜美又清新的西瓜冰沙，散发着淡淡的果香</li>
+            <li>海岸黄昏 — 夕阳洒落在沙滩的暖橙色，轻松又舒展</li>
+        </ul>
+
+    </div>
+
+    <footer>
+        <p>FUR-PAW Color Chart / 25S/S-Collection 6</p>
+        <p style="margin-top: 0.5rem;">扁平化设计 ·  简洁至上</p>
+    </footer>
+
+</body>
+</html>
