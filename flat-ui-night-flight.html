@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>夜间飞行 · Night Radio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --night-runway: #0A1320;
+            --wet-asphalt: #1F2A36;
+            --panel: #16212E;
+            --panel-hover: #1C2935;
+            --vaporwave-teal: #14B4C6;
+            --hologram-mint: #9FF0E0;
+            --synthwave-purple: #8E7CFF;
+            --neon-kanji: #FF5A4E;
+            --sunset-glare: #FF8B2E;
+            --mist-peach: #FFC19A;
+            --streetlamp: #E5C84B;
+            --text-bright: #F2F4F6;
+            --text-mid: #B6C2CF;
+            --text-dim: #6A7684;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, sans-serif;
+            background: var(--night-runway);
+            color: var(--text-bright);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .topbar {
+            background: var(--wet-asphalt);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--synthwave-purple);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            color: var(--text-bright);
+        }
+
+        .brand-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--neon-kanji);
+            box-shadow: 0 0 10px var(--neon-kanji);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .live-tag {
+            background: var(--neon-kanji);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            letter-spacing: 1px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        .signal-dots { display: flex; gap: 3px; align-items: flex-end; }
+        .signal-dots span { width: 3px; background: var(--vaporwave-teal); }
+        .signal-dots span:nth-child(1) { height: 5px; }
+        .signal-dots span:nth-child(2) { height: 8px; }
+        .signal-dots span:nth-child(3) { height: 11px; }
+        .signal-dots span:nth-child(4) { height: 14px; }
+
+        .layout {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 1.5rem;
+        }
+
+        .now-playing {
+            background: var(--panel);
+            padding: 2.5rem;
+        }
+
+        .np-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--vaporwave-teal);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .np-cover {
+            width: 100%;
+            height: 240px;
+            background: linear-gradient(135deg, var(--synthwave-purple) 0%, var(--vaporwave-teal) 60%, var(--hologram-mint) 100%);
+            display: flex;
+            align-items: flex-end;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .np-cover:hover { opacity: 0.9; }
+
+        .np-cover::after {
+            content: "";
+            position: absolute;
+            right: -30px;
+            top: -30px;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: rgba(255, 90, 78, 0.3);
+        }
+
+        .np-cover-text { position: relative; z-index: 1; }
+
+        .np-cover-text .jp {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.2;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+        }
+
+        .np-cover-text .en {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.75);
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+
+        .np-cover-upload {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 8px;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 2;
+        }
+
+        .np-cover:hover .np-cover-upload { opacity: 1; }
+
+        .np-cover-upload svg { width: 32px; height: 32px; fill: rgba(255,255,255,0.7); }
+
+        .np-title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            color: var(--text-bright);
+        }
+
+        .np-artist {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            margin-bottom: 1.5rem;
+        }
+
+        .np-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            color: var(--night-runway);
+        }
+
+        .badge-synth { background: var(--synthwave-purple); color: #fff; }
+        .badge-file { background: var(--streetlamp); }
+
+        .np-progress { margin-bottom: 1.5rem; }
+
+        .np-bar {
+            height: 4px;
+            background: var(--night-runway);
+            position: relative;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+        }
+
+        .np-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--synthwave-purple);
+            transition: width 0.15s linear;
+        }
+
+        .np-bar-dot {
+            position: absolute;
+            left: 0%;
+            top: -4px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--hologram-mint);
+            transform: translateX(-50%);
+            transition: left 0.15s linear;
+        }
+
+        .np-times {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            font-family: 'Courier New', monospace;
+        }
+
+        .np-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .ctrl {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s, color 0.2s;
+            color: var(--text-mid);
+        }
+
+        .ctrl svg { width: 22px; height: 22px; fill: currentColor; }
+
+        .ctrl:hover {
+            background: var(--panel-hover);
+            color: var(--vaporwave-teal);
+        }
+
+        .ctrl-play {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--vaporwave-teal);
+            color: var(--night-runway);
+            box-shadow: 0 0 24px rgba(20, 180, 198, 0.3);
+        }
+
+        .ctrl-play svg { width: 26px; height: 26px; }
+
+        .ctrl-play:hover {
+            background: var(--hologram-mint);
+            color: var(--night-runway);
+            box-shadow: 0 0 32px rgba(159, 240, 224, 0.4);
+        }
+
+        .np-volume {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--night-runway);
+        }
+
+        .vol-icon { color: var(--text-dim); display: flex; align-items: center; }
+        .vol-icon svg { width: 18px; height: 18px; fill: currentColor; }
+
+        .vol-bar {
+            flex: 1;
+            height: 3px;
+            background: var(--night-runway);
+            position: relative;
+            cursor: pointer;
+        }
+
+        .vol-fill {
+            height: 100%;
+            width: 70%;
+            background: var(--vaporwave-teal);
+        }
+
+        .vol-val {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            font-family: 'Courier New', monospace;
+            width: 32px;
+            text-align: right;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .visualizer {
+            background: var(--panel);
+            padding: 1.5rem;
+        }
+
+        .vis-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .vis-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 90px;
+        }
+
+        .vis-bars span {
+            flex: 1;
+            background: var(--vaporwave-teal);
+            opacity: 0.85;
+            height: 8%;
+            transition: height 0.06s ease;
+        }
+
+        .playlist {
+            background: var(--panel);
+            padding: 1.5rem;
+        }
+
+        .pl-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .pl-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .pl-count {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+        }
+
+        .import-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 0.6rem;
+            margin-bottom: 0.75rem;
+            background: transparent;
+            border: 1px dashed var(--synthwave-purple);
+            color: var(--synthwave-purple);
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .import-btn:hover {
+            background: var(--synthwave-purple);
+            color: #fff;
+        }
+
+        .import-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+        .pl-list {
+            max-height: 340px;
+            overflow-y: auto;
+        }
+
+        .pl-list::-webkit-scrollbar { width: 4px; }
+        .pl-list::-webkit-scrollbar-track { background: var(--night-runway); }
+        .pl-list::-webkit-scrollbar-thumb { background: var(--wet-asphalt); }
+
+        .pl-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.7rem 0.5rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-left: 2px solid transparent;
+        }
+
+        .pl-item:hover { background: var(--night-runway); }
+
+        .pl-num {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            font-family: 'Courier New', monospace;
+            width: 20px;
+        }
+
+        .pl-info { flex: 1; min-width: 0; }
+
+        .pl-name {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-mid);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pl-artist {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+        }
+
+        .pl-dur {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            font-family: 'Courier New', monospace;
+        }
+
+        .pl-type {
+            font-size: 0.55rem;
+            padding: 1px 5px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .pl-type-synth { background: var(--synthwave-purple); color: #fff; }
+        .pl-type-file { background: var(--streetlamp); color: var(--night-runway); }
+
+        .pl-item.active {
+            background: var(--night-runway);
+            border-left-color: var(--synthwave-purple);
+        }
+
+        .pl-item.active .pl-name { color: var(--hologram-mint); }
+        .pl-item.active .pl-num { color: var(--synthwave-purple); }
+
+        .statusbar {
+            max-width: 1100px;
+            margin: 0 auto 3rem;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+        }
+
+        .stat {
+            background: var(--panel);
+            padding: 1.2rem 1.5rem;
+            border-left: 3px solid var(--vaporwave-teal);
+        }
+
+        .stat:nth-child(2) { border-left-color: var(--synthwave-purple); }
+        .stat:nth-child(3) { border-left-color: var(--sunset-glare); }
+        .stat:nth-child(4) { border-left-color: var(--neon-kanji); }
+
+        .stat-val {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            color: var(--text-bright);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            background: var(--wet-asphalt);
+            color: var(--text-dim);
+            font-size: 0.8rem;
+        }
+
+        .footer span { color: var(--hologram-mint); }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--wet-asphalt);
+            color: var(--hologram-mint);
+            padding: 0.75rem 1.5rem;
+            font-size: 0.85rem;
+            border-left: 3px solid var(--vaporwave-teal);
+            transition: transform 0.3s ease;
+            z-index: 100;
+        }
+
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        @media (max-width: 860px) {
+            .layout { grid-template-columns: 1fr; }
+            .statusbar { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-icon"></span>
+            <span>NIGHT FLIGHT RADIO</span>
+            <span class="live-tag">ON AIR</span>
+        </div>
+        <div class="topbar-right">
+            <span>FM 88.6</span>
+            <div class="signal-dots">
+                <span></span><span></span><span></span><span></span>
+            </div>
+        </div>
+    </header>
+
+    <div class="layout">
+        <main class="now-playing">
+            <div class="np-label">▸ NOW PLAYING</div>
+            <div class="np-cover" id="npCover">
+                <div class="np-cover-text">
+                    <div class="jp" id="coverJp">晴天</div>
+                    <div class="en" id="coverEn">SUNNY DAY · 2003</div>
+                </div>
+                <div class="np-cover-upload">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                    <span>点击导入音乐</span>
+                </div>
+            </div>
+            <span class="np-badge badge-synth" id="npBadge">SYNTH</span>
+            <h1 class="np-title" id="npTitle">晴天</h1>
+            <p class="np-artist" id="npArtist">周杰伦 · 叶惠美</p>
+
+            <div class="np-progress">
+                <div class="np-bar" id="progressBar">
+                    <div class="np-bar-fill" id="progressFill"></div>
+                    <div class="np-bar-dot" id="progressDot"></div>
+                </div>
+                <div class="np-times">
+                    <span id="curTime">00:00</span>
+                    <span id="totTime">04:29</span>
+                </div>
+            </div>
+
+            <div class="np-controls">
+                <button class="ctrl" id="btnPrev" title="上一首">
+                    <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/></svg>
+                </button>
+                <button class="ctrl" id="btnBack" title="后退10秒">
+                    <svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+                </button>
+                <button class="ctrl ctrl-play" id="btnPlay" title="播放/暂停">
+                    <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5z"/></svg>
+                    <svg id="iconPause" viewBox="0 0 24 24" style="display:none"><path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z"/></svg>
+                </button>
+                <button class="ctrl" id="btnFwd" title="前进10秒">
+                    <svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9.5-12v12l8.5-6-8.5-6z"/></svg>
+                </button>
+                <button class="ctrl" id="btnNext" title="下一首">
+                    <svg viewBox="0 0 24 24"><path d="M16 6v12h2V6h-2zM6 18l8.5-6L6 6v12z"/></svg>
+                </button>
+            </div>
+
+            <div class="np-volume">
+                <span class="vol-icon">
+                    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+                </span>
+                <div class="vol-bar" id="volBar">
+                    <div class="vol-fill" id="volFill"></div>
+                </div>
+                <span class="vol-val" id="volVal">70</span>
+            </div>
+        </main>
+
+        <aside class="sidebar">
+            <div class="visualizer">
+                <div class="vis-title">FREQUENCY</div>
+                <div class="vis-bars" id="visBars"></div>
+            </div>
+
+            <div class="playlist">
+                <div class="pl-head">
+                    <span class="pl-title">PLAYLIST</span>
+                    <span class="pl-count" id="plCount">6 tracks</span>
+                </div>
+                <button class="import-btn" id="importBtn">
+                    <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+                    导入本地音乐
+                </button>
+                <input type="file" id="fileInput" accept="audio/*" multiple style="display:none">
+                <div class="pl-list" id="plList"></div>
+            </div>
+        </aside>
+    </div>
+
+    <div class="statusbar">
+        <div class="stat">
+            <div class="stat-val" id="statListeners">1,284</div>
+            <div class="stat-label">收听人数</div>
+        </div>
+        <div class="stat">
+            <div class="stat-val">88.6</div>
+            <div class="stat-label">频率 MHz</div>
+        </div>
+        <div class="stat">
+            <div class="stat-val" id="statTime">23:34</div>
+            <div class="stat-label">当前时间</div>
+        </div>
+        <div class="stat">
+            <div class="stat-val" id="statInteract">42%</div>
+            <div class="stat-label">听众互动</div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>NIGHT FLIGHT RADIO · <span>夜间飞行电台</span> · 扁平化设计</p>
+    </footer>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ============ 音符频率 ============
+        const N = {
+            C2:65.41, D2:73.42, E2:82.41, F2:87.31, Fs2:92.50, G2:98.00, A2:110.00, B2:123.47,
+            C3:130.81, D3:146.83, E3:164.81, F3:174.61, Fs3:185.00, G3:196.00, A3:220.00, B3:246.94,
+            C4:261.63, D4:293.66, E4:329.63, F4:349.23, Fs4:369.99, G4:392.00, A4:440.00, B4:493.88,
+            C5:523.25, D5:587.33, E5:659.25, F5:698.46, Fs5:739.99, G5:783.99, A5:880.00
+        };
+
+        // ============ 歌曲数据 ============
+        const tracks = [
+            {
+                type: 'file',
+                title: "晴天", artist: "周杰伦 · 叶惠美",
+                jp: "晴天", en: "SUNNY DAY · 2003", dur: 269,
+                grad: ["#14B4C6","#9FF0E0","#8E7CFF"],
+                url: "http://127.0.0.1:8090/" + encodeURI("周杰伦 - 晴天.mp3")
+            }
+        ];
+
+        // ============ Web Audio 引擎 ============
+        let audioCtx = null;
+        let masterGain = null;
+        let analyser = null;
+        let activeNodes = [];
+        let schedTimer = null;
+        let nextNoteTime = 0;
+        let melodyIdx = 0;
+        let bassIdx = 0;
+
+        // 文件播放用
+        let audioEl = null;
+        let mediaSource = null;
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = volume / 100 * 0.35;
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 64;
+            masterGain.connect(analyser);
+            analyser.connect(audioCtx.destination);
+
+            // 创建 audio 元素用于文件播放
+            audioEl = new Audio();
+            audioEl.crossOrigin = 'anonymous';
+            mediaSource = audioCtx.createMediaElementSource(audioEl);
+            mediaSource.connect(masterGain);
+
+            audioEl.addEventListener('ended', () => {
+                nextTrack(true);
+            });
+            audioEl.addEventListener('loadedmetadata', () => {
+                const t = tracks[currentIdx];
+                if (t.type === 'file') {
+                    t.dur = audioEl.duration;
+                    elTotTime.textContent = fmt(t.dur);
+                    renderPlaylist();
+                }
+            });
+            audioEl.addEventListener('timeupdate', () => {
+                if (tracks[currentIdx] && tracks[currentIdx].type === 'file' && !audioEl.seeking) {
+                    currentTime = audioEl.currentTime;
+                    updateProgress();
+                }
+            });
+        }
+
+        // 合成音符
+        function playNote(freq, startTime, dur, type, vol) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            osc.type = type;
+            osc.frequency.value = freq;
+            filter.type = 'lowpass';
+            filter.frequency.value = 2200;
+            filter.Q.value = 3;
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(masterGain);
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(vol, startTime + 0.015);
+            gain.gain.exponentialRampToValueAtTime(vol * 0.6, startTime + 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + dur);
+            osc.start(startTime);
+            osc.stop(startTime + dur + 0.05);
+            activeNodes.push(osc);
+            osc.onended = () => {
+                const i = activeNodes.indexOf(osc);
+                if (i >= 0) activeNodes.splice(i, 1);
+            };
+        }
+
+        function scheduler() {
+            const t = tracks[currentIdx];
+            const beatDur = 60 / t.bpm;
+            const ahead = 0.2;
+            while (nextNoteTime < audioCtx.currentTime + ahead) {
+                const mNote = t.melody[melodyIdx % t.melody.length];
+                playNote(mNote, nextNoteTime, beatDur * 0.9, t.wave, 0.18);
+                if (melodyIdx % 2 === 0) {
+                    const bNote = t.bass[bassIdx % t.bass.length];
+                    playNote(bNote, nextNoteTime, beatDur * 1.8, 'sine', 0.35);
+                    bassIdx++;
+                }
+                if (melodyIdx % 4 === 0) {
+                    playNote(mNote * 2, nextNoteTime + beatDur * 0.5, beatDur * 0.4, 'sine', 0.06);
+                }
+                nextNoteTime += beatDur;
+                melodyIdx++;
+            }
+        }
+
+        function startSynth() {
+            initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            nextNoteTime = audioCtx.currentTime + 0.05;
+            schedTimer = setInterval(scheduler, 50);
+        }
+
+        function stopSynth() {
+            if (schedTimer) { clearInterval(schedTimer); schedTimer = null; }
+            activeNodes.forEach(n => { try { n.stop(); } catch(e){} });
+            activeNodes = [];
+        }
+
+        function startFile() {
+            initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const t = tracks[currentIdx];
+            if (audioEl.src !== t.url) {
+                audioEl.src = t.url;
+            }
+            audioEl.currentTime = currentTime;
+            audioEl.play().catch(e => showToast('播放失败: ' + e.message));
+        }
+
+        function stopFile() {
+            if (audioEl) { audioEl.pause(); }
+        }
+
+        // ============ 播放器状态 ============
+        let currentIdx = 0;
+        let isPlaying = false;
+        let currentTime = 0;
+        let volume = 70;
+        let timer = null;
+
+        // DOM
+        const elTitle = document.getElementById('npTitle');
+        const elArtist = document.getElementById('npArtist');
+        const elCoverJp = document.getElementById('coverJp');
+        const elCoverEn = document.getElementById('coverEn');
+        const elCover = document.getElementById('npCover');
+        const elBadge = document.getElementById('npBadge');
+        const elPlayBtn = document.getElementById('btnPlay');
+        const elIconPlay = document.getElementById('iconPlay');
+        const elIconPause = document.getElementById('iconPause');
+        const elPrev = document.getElementById('btnPrev');
+        const elNext = document.getElementById('btnNext');
+        const elBack = document.getElementById('btnBack');
+        const elFwd = document.getElementById('btnFwd');
+        const elProgBar = document.getElementById('progressBar');
+        const elProgFill = document.getElementById('progressFill');
+        const elProgDot = document.getElementById('progressDot');
+        const elCurTime = document.getElementById('curTime');
+        const elTotTime = document.getElementById('totTime');
+        const elVolBar = document.getElementById('volBar');
+        const elVolFill = document.getElementById('volFill');
+        const elVolVal = document.getElementById('volVal');
+        const elPlList = document.getElementById('plList');
+        const elPlCount = document.getElementById('plCount');
+        const elVisBars = document.getElementById('visBars');
+        const elToast = document.getElementById('toast');
+        const elStatTime = document.getElementById('statTime');
+        const elStatListeners = document.getElementById('statListeners');
+        const elStatInteract = document.getElementById('statInteract');
+        const elImportBtn = document.getElementById('importBtn');
+        const elFileInput = document.getElementById('fileInput');
+
+        function fmt(sec) {
+            if (isNaN(sec) || sec === Infinity) return '--:--';
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+        }
+
+        function showToast(msg) {
+            elToast.textContent = msg;
+            elToast.classList.add('show');
+            clearTimeout(elToast._t);
+            elToast._t = setTimeout(() => elToast.classList.remove('show'), 2000);
+        }
+
+        function renderPlaylist() {
+            elPlList.innerHTML = '';
+            elPlCount.textContent = tracks.length + ' tracks';
+            tracks.forEach((t, i) => {
+                const div = document.createElement('div');
+                div.className = 'pl-item' + (i === currentIdx ? ' active' : '');
+                const artistShort = t.type === 'file' ? '本地导入' : (t.artist.split('·')[0].trim());
+                const typeBadge = t.type === 'file'
+                    ? '<span class="pl-type pl-type-file">FILE</span>'
+                    : '<span class="pl-type pl-type-synth">SYNTH</span>';
+                div.innerHTML = `
+                    <span class="pl-num">${String(i+1).padStart(2,'0')}</span>
+                    <div class="pl-info">
+                        <div class="pl-name">${t.title}</div>
+                        <div class="pl-artist">${artistShort}</div>
+                    </div>
+                    ${typeBadge}
+                    <span class="pl-dur">${fmt(t.dur)}</span>
+                `;
+                div.addEventListener('click', () => selectTrack(i));
+                elPlList.appendChild(div);
+            });
+        }
+
+        function loadTrack(idx) {
+            const t = tracks[idx];
+            elTitle.textContent = t.title;
+            elArtist.textContent = t.artist;
+            elCoverJp.textContent = t.jp || t.title;
+            elCoverEn.textContent = t.en || 'LOCAL FILE';
+            elCover.style.background = `linear-gradient(135deg, ${t.grad[0]} 0%, ${t.grad[1]} 60%, ${t.grad[2]} 100%)`;
+
+            if (t.type === 'file') {
+                elBadge.textContent = 'FILE';
+                elBadge.className = 'np-badge badge-file';
+            } else {
+                elBadge.textContent = 'SYNTH';
+                elBadge.className = 'np-badge badge-synth';
+            }
+
+            elTotTime.textContent = fmt(t.dur);
+            currentTime = 0;
+            melodyIdx = 0;
+            bassIdx = 0;
+            updateProgress();
+            renderPlaylist();
+        }
+
+        function selectTrack(idx) {
+            const wasPlaying = isPlaying;
+            stopAll();
+            currentIdx = idx;
+            loadTrack(idx);
+            if (wasPlaying) {
+                playCurrent();
+            }
+            showToast('▶ ' + tracks[idx].title);
+        }
+
+        function stopAll() {
+            stopSynth();
+            stopFile();
+            stopTimer();
+        }
+
+        function playCurrent() {
+            const t = tracks[currentIdx];
+            if (t.type === 'synth') {
+                startSynth();
+                startTimer();
+            } else {
+                startFile();
+                // 文件模式用 timeupdate 驱动进度，不需要 timer
+            }
+            startVisLoop();
+        }
+
+        function updateProgress() {
+            const t = tracks[currentIdx];
+            const pct = (currentTime / t.dur) * 100;
+            elProgFill.style.width = pct + '%';
+            elProgDot.style.left = pct + '%';
+            elCurTime.textContent = fmt(currentTime);
+        }
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                elIconPlay.style.display = 'none';
+                elIconPause.style.display = 'block';
+                playCurrent();
+            } else {
+                elIconPlay.style.display = 'block';
+                elIconPause.style.display = 'none';
+                stopAll();
+            }
+        }
+
+        function startTimer() {
+            stopTimer();
+            timer = setInterval(() => {
+                currentTime += 1;
+                if (currentTime >= tracks[currentIdx].dur) {
+                    nextTrack(true);
+                    return;
+                }
+                updateProgress();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timer) { clearInterval(timer); timer = null; }
+        }
+
+        function nextTrack(auto) {
+            const wasPlaying = isPlaying;
+            stopAll();
+            currentIdx = (currentIdx + 1) % tracks.length;
+            loadTrack(currentIdx);
+            if (wasPlaying) {
+                playCurrent();
+            }
+            if (!auto) showToast('▶ ' + tracks[currentIdx].title);
+        }
+
+        function prevTrack() {
+            const wasPlaying = isPlaying;
+            stopAll();
+            currentIdx = (currentIdx - 1 + tracks.length) % tracks.length;
+            loadTrack(currentIdx);
+            if (wasPlaying) {
+                playCurrent();
+            }
+            showToast('▶ ' + tracks[currentIdx].title);
+        }
+
+        // ============ 频谱可视化 ============
+        let visRaf = null;
+        function buildBars() {
+            elVisBars.innerHTML = '';
+            for (let i = 0; i < 24; i++) {
+                elVisBars.appendChild(document.createElement('span'));
+            }
+        }
+
+        function startVisLoop() {
+            if (visRaf) cancelAnimationFrame(visRaf);
+            const bars = elVisBars.children;
+            const data = new Uint8Array(32);
+
+            function draw() {
+                if (!isPlaying) {
+                    for (let i = 0; i < bars.length; i++) bars[i].style.height = '8%';
+                    visRaf = null;
+                    return;
+                }
+                if (analyser) {
+                    analyser.getByteFrequencyData(data);
+                    for (let i = 0; i < bars.length; i++) {
+                        const idx = Math.floor(i * data.length / bars.length);
+                        const h = Math.max(8, (data[idx] / 255) * 100);
+                        bars[i].style.height = h + '%';
+                        bars[i].style.opacity = 0.6 + (h / 100) * 0.4;
+                    }
+                }
+                visRaf = requestAnimationFrame(draw);
+            }
+            draw();
+        }
+
+        // ============ 导入音乐 ============
+        const fileGrads = [
+            ["#8E7CFF","#FF5A4E","#FF8B2E"],
+            ["#14B4C6","#9FF0E0","#8E7CFF"],
+            ["#FF8B2E","#E5C84B","#FFC19A"],
+            ["#FF5A4E","#8E7CFF","#14B4C6"],
+            ["#E5C84B","#14B4C6","#9FF0E0"]
+        ];
+
+        elImportBtn.addEventListener('click', () => elFileInput.click());
+        elCover.addEventListener('click', () => elFileInput.click());
+
+        elFileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+
+            files.forEach((file, i) => {
+                const url = URL.createObjectURL(file);
+                const name = file.name.replace(/\.[^.]+$/, '');
+                const grad = fileGrads[(tracks.length + i) % fileGrads.length];
+                tracks.push({
+                    type: 'file',
+                    title: name,
+                    artist: '本地导入 · ' + (file.size > 1048576
+                        ? (file.size / 1048576).toFixed(1) + ' MB'
+                        : (file.size / 1024).toFixed(0) + ' KB'),
+                    jp: name.slice(0, 6),
+                    en: 'LOCAL FILE',
+                    dur: 0,
+                    grad: grad,
+                    url: url
+                });
+            });
+
+            showToast('已导入 ' + files.length + ' 首音乐');
+            renderPlaylist();
+
+            // 自动播放第一首导入的歌
+            const firstNewIdx = tracks.length - files.length;
+            selectTrack(firstNewIdx);
+            if (!isPlaying) togglePlay();
+
+            elFileInput.value = '';
+        });
+
+        // ============ 交互事件 ============
+        elProgBar.addEventListener('click', (e) => {
+            const rect = elProgBar.getBoundingClientRect();
+            const pct = (e.clientX - rect.left) / rect.width;
+            const t = tracks[currentIdx];
+            currentTime = Math.floor(pct * t.dur);
+            if (t.type === 'file' && audioEl) {
+                audioEl.currentTime = currentTime;
+            }
+            updateProgress();
+        });
+
+        elVolBar.addEventListener('click', (e) => {
+            const rect = elVolBar.getBoundingClientRect();
+            const pct = Math.round((e.clientX - rect.left) / rect.width * 100);
+            volume = Math.max(0, Math.min(100, pct));
+            elVolFill.style.width = volume + '%';
+            elVolVal.textContent = volume;
+            if (masterGain) masterGain.gain.value = volume / 100 * 0.35;
+        });
+
+        elPlayBtn.addEventListener('click', togglePlay);
+        elNext.addEventListener('click', () => nextTrack(false));
+        elPrev.addEventListener('click', prevTrack);
+        elBack.addEventListener('click', () => {
+            currentTime = Math.max(0, currentTime - 10);
+            const t = tracks[currentIdx];
+            if (t.type === 'file' && audioEl) audioEl.currentTime = currentTime;
+            updateProgress();
+            showToast('⏪ 后退 10 秒');
+        });
+        elFwd.addEventListener('click', () => {
+            const t = tracks[currentIdx];
+            currentTime = Math.min(t.dur, currentTime + 10);
+            if (t.type === 'file' && audioEl) audioEl.currentTime = currentTime;
+            updateProgress();
+            showToast('⏩ 前进 10 秒');
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+            if (e.code === 'ArrowRight') nextTrack(false);
+            if (e.code === 'ArrowLeft') prevTrack();
+        });
+
+        // 实时时钟 + 听众波动
+        function updateClock() {
+            const now = new Date();
+            elStatTime.textContent = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+        }
+
+        let listeners = 1284, interact = 42;
+        setInterval(() => {
+            listeners += Math.floor(Math.random() * 7) - 3;
+            if (listeners < 800) listeners = 800;
+            elStatListeners.textContent = listeners.toLocaleString();
+            interact += Math.floor(Math.random() * 5) - 2;
+            interact = Math.max(20, Math.min(80, interact));
+            elStatInteract.textContent = interact + '%';
+        }, 3000);
+
+        // 初始化
+        buildBars();
+        loadTrack(0);
+        updateClock();
+        setInterval(updateClock, 1000);
+        elVolFill.style.width = volume + '%';
+    </script>
+</body>
+</html>
