@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>夜间飞行 · Night Radio</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@700&display=swap" rel="preload" as="style" onload="this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet"></noscript>
     <style>
         :root {
             --night-runway: #0A1320;
@@ -129,6 +132,7 @@
             background: var(--panel);
             padding: 2.5rem;
             border-top: 3px solid var(--vaporwave-teal);
+            overflow: hidden;
         }
 
         .np-label {
@@ -209,12 +213,20 @@
             font-weight: 700;
             margin-bottom: 0.25rem;
             color: var(--text-bright);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .np-artist {
             font-size: 0.9rem;
             color: var(--text-dim);
             margin-bottom: 1.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .np-badge {
@@ -314,6 +326,39 @@
             box-shadow: 0 0 32px rgba(159, 240, 224, 0.4);
         }
 
+        .np-modes {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .mode-btn {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: var(--text-dim);
+            transition: color 0.2s, background 0.2s;
+        }
+
+        .mode-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+        .mode-btn:hover {
+            color: var(--text-mid);
+            background: var(--panel-hover);
+        }
+
+        .mode-btn.active {
+            color: var(--vaporwave-teal);
+        }
+
         .np-volume {
             display: flex;
             align-items: center;
@@ -321,6 +366,68 @@
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid var(--night-runway);
+        }
+
+        .np-sleep {
+            display: flex;
+            align-items: center;
+            position: relative;
+            gap: 0.3rem;
+        }
+
+        .sleep-btn {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            transition: color 0.2s;
+        }
+
+        .sleep-btn:hover { color: var(--text-mid); }
+        .sleep-btn.active { color: var(--sunset-glare); }
+        .sleep-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+        .sleep-menu {
+            display: none;
+            position: absolute;
+            top: -120px;
+            left: 0;
+            background: var(--panel);
+            border: 1px solid var(--wet-asphalt);
+            padding: 0.4rem 0;
+            z-index: 20;
+            min-width: 100px;
+        }
+
+        .sleep-menu.open { display: block; }
+
+        .sleep-menu button {
+            display: block;
+            width: 100%;
+            padding: 0.45rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-mid);
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .sleep-menu button:hover {
+            background: var(--night-runway);
+            color: var(--hologram-mint);
+        }
+
+        .sleep-status {
+            font-size: 0.7rem;
+            color: var(--sunset-glare);
+            font-family: 'Courier New', monospace;
         }
 
         .vol-icon { color: var(--text-dim); display: flex; align-items: center; cursor: pointer; }
@@ -872,7 +979,31 @@
                 </button>
             </div>
 
+            <div class="np-modes">
+                <button class="mode-btn active" id="modeSeq" data-mode="sequential" title="顺序播放">
+                    <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+                </button>
+                <button class="mode-btn" id="modeLoop" data-mode="loop-one" title="单曲循环">
+                    <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/><text x="12" y="14" text-anchor="middle" font-size="7" font-weight="bold" fill="currentColor">1</text></svg>
+                </button>
+                <button class="mode-btn" id="modeShuffle" data-mode="shuffle" title="随机播放">
+                    <svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.54 7.87 19.5 10V4h-5zm.33 9.41l-1.41 1.41 3.54 3.54L19.5 20V14h-5z"/></svg>
+                </button>
+            </div>
+
             <div class="np-volume">
+                <div class="np-sleep">
+                    <button class="sleep-btn" id="sleepBtn" title="睡眠定时器">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/></svg>
+                    </button>
+                    <div class="sleep-menu" id="sleepMenu">
+                        <button data-min="15">15 分钟</button>
+                        <button data-min="30">30 分钟</button>
+                        <button data-min="60">1 小时</button>
+                        <button data-min="0">关闭</button>
+                    </div>
+                    <span class="sleep-status" id="sleepStatus"></span>
+                </div>
                 <span class="vol-icon" id="volIcon">
                     <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
                 </span>
@@ -975,7 +1106,7 @@
         let audioCtx = null;
         let masterGain = null;
         let analyser = null;
-        let activeNodes = [];
+        let activeNodes = new Set();
         let schedTimer = null;
         let nextNoteTime = 0;
         let melodyIdx = 0;
@@ -1042,17 +1173,16 @@
             gain.gain.exponentialRampToValueAtTime(0.0001, startTime + dur);
             osc.start(startTime);
             osc.stop(startTime + dur + 0.05);
-            activeNodes.push(osc);
+            activeNodes.add(osc);
             osc.onended = () => {
-                const i = activeNodes.indexOf(osc);
-                if (i >= 0) activeNodes.splice(i, 1);
+                activeNodes.delete(osc);
             };
         }
 
         function scheduler() {
             const t = tracks[currentIdx];
             const beatDur = 60 / t.bpm;
-            const ahead = 0.2;
+            const ahead = 1.0;
             while (nextNoteTime < audioCtx.currentTime + ahead) {
                 const mNote = t.melody[melodyIdx % t.melody.length];
                 playNote(mNote, nextNoteTime, beatDur * 0.9, t.wave, t.mVol || 0.18);
@@ -1079,8 +1209,14 @@
         function stopSynth() {
             if (schedTimer) { clearInterval(schedTimer); schedTimer = null; }
             activeNodes.forEach(n => { try { n.stop(); } catch(e){} });
-            activeNodes = [];
+            activeNodes.clear();
         }
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && isPlaying && tracks[currentIdx] && tracks[currentIdx].type === 'synth') {
+                scheduler();
+            }
+        });
 
         function startFile() {
             initAudio();
@@ -1102,9 +1238,12 @@
         let currentIdx = 0;
         let isPlaying = false;
         let currentTime = 0;
-        let volume = 70;
-        let prevVolume = 70;
+        let volume = parseInt(localStorage.getItem('nf_volume')) || 70;
+        let prevVolume = parseInt(localStorage.getItem('nf_prevVolume')) || 70;
+        let playMode = localStorage.getItem('nf_playMode') || 'sequential';
         let timer = null;
+        let playStartCtxTime = 0;
+        let playStartOffset = 0;
 
         // DOM
         const elTitle = document.getElementById('npTitle');
@@ -1184,6 +1323,12 @@
             });
         }
 
+        function updatePlaylistActive() {
+            elPlList.querySelectorAll('.pl-item').forEach((el, i) => {
+                el.classList.toggle('active', i === currentIdx);
+            });
+        }
+
         function loadTrack(idx) {
             const t = tracks[idx];
             elTitle.textContent = t.title;
@@ -1206,7 +1351,7 @@
             bassIdx = 0;
             lrcCurrentIdx = -1;
             updateProgress();
-            renderPlaylist();
+            updatePlaylistActive();
             autoSearchLyrics();
         }
 
@@ -1237,7 +1382,6 @@
             } else {
                 startFile();
             }
-            startVisLoop();
             startSession();
             updateStats();
         }
@@ -1265,25 +1409,40 @@
 
         function startTimer() {
             stopTimer();
+            playStartCtxTime = audioCtx.currentTime;
+            playStartOffset = currentTime;
             timer = setInterval(() => {
-                currentTime += 1;
+                currentTime = playStartOffset + (audioCtx.currentTime - playStartCtxTime);
                 if (currentTime >= tracks[currentIdx].dur) {
                     nextTrack(true);
                     return;
                 }
                 updateProgress();
                 syncLyrics();
-            }, 1000);
+            }, 250);
         }
 
         function stopTimer() {
             if (timer) { clearInterval(timer); timer = null; }
         }
 
+        function getNextIdx() {
+            if (playMode === 'loop-one') {
+                return currentIdx;
+            } else if (playMode === 'shuffle') {
+                if (tracks.length <= 1) return 0;
+                let next;
+                do { next = Math.floor(Math.random() * tracks.length); } while (next === currentIdx);
+                return next;
+            } else {
+                return (currentIdx + 1) % tracks.length;
+            }
+        }
+
         function nextTrack(auto) {
             const wasPlaying = isPlaying;
             stopAll();
-            currentIdx = (currentIdx + 1) % tracks.length;
+            currentIdx = getNextIdx();
             loadTrack(currentIdx);
             resetSession();
             if (wasPlaying) {
@@ -1462,7 +1621,6 @@
         }
 
         // ============ 频谱可视化 ============
-        let visRaf = null;
         const visPalette = [
             '#14B4C6', '#9FF0E0', '#8E7CFF', '#FF5A4E',
             '#FF8B2E', '#FFC19A', '#E5C84B', '#14B4C6'
@@ -1477,18 +1635,12 @@
             }
         }
 
-        function startVisLoop() {
-            if (visRaf) cancelAnimationFrame(visRaf);
+        function initVisLoop() {
             const bars = elVisBars.children;
             const data = new Uint8Array(32);
 
             function draw() {
-                if (!isPlaying) {
-                    for (let i = 0; i < bars.length; i++) bars[i].style.height = '8%';
-                    visRaf = null;
-                    return;
-                }
-                if (analyser) {
+                if (isPlaying && analyser) {
                     analyser.getByteFrequencyData(data);
                     for (let i = 0; i < bars.length; i++) {
                         const idx = Math.floor(i * data.length / bars.length);
@@ -1496,13 +1648,30 @@
                         bars[i].style.height = h + '%';
                         bars[i].style.opacity = 0.6 + (h / 100) * 0.4;
                     }
+                } else {
+                    for (let i = 0; i < bars.length; i++) {
+                        bars[i].style.height = '8%';
+                        bars[i].style.opacity = 0.85;
+                    }
                 }
-                visRaf = requestAnimationFrame(draw);
+                requestAnimationFrame(draw);
             }
             draw();
         }
 
         // ============ 导入音乐 ============
+        function revokeTrackUrl(idx) {
+            const t = tracks[idx];
+            if (t && t.type === 'file' && t.url && t.url.startsWith('blob:')) {
+                URL.revokeObjectURL(t.url);
+                t.url = '';
+            }
+        }
+
+        window.addEventListener('beforeunload', () => {
+            tracks.forEach((t, i) => revokeTrackUrl(i));
+        });
+
         const fileGrads = [
             ["#8E7CFF","#FF5A4E","#FF8B2E"],
             ["#14B4C6","#9FF0E0","#8E7CFF"],
@@ -1552,6 +1721,7 @@
             elVolVal.textContent = volume;
             updateVolSlider();
             if (masterGain) masterGain.gain.value = volume / 100 * 0.35;
+            localStorage.setItem('nf_volume', volume);
         });
 
         // 点击喇叭图标切换静音
@@ -1566,6 +1736,8 @@
             elVolVal.textContent = volume;
             updateVolSlider();
             if (masterGain) masterGain.gain.value = volume / 100 * 0.35;
+            localStorage.setItem('nf_volume', volume);
+            localStorage.setItem('nf_prevVolume', prevVolume);
         });
 
         // ============ 进度条拖拽（支持触摸） ============
@@ -1585,21 +1757,35 @@
 
         elProgBar.addEventListener('mousedown', (e) => {
             draggingProg = true;
+            elProgFill.style.transition = 'none';
+            elProgDot.style.transition = 'none';
             seekFromEvent(e);
         });
         document.addEventListener('mousemove', (e) => {
             if (draggingProg) seekFromEvent(e);
         });
-        document.addEventListener('mouseup', () => { draggingProg = false; });
+        document.addEventListener('mouseup', () => {
+            if (draggingProg) {
+                elProgFill.style.transition = '';
+                elProgDot.style.transition = '';
+            }
+            draggingProg = false;
+        });
 
         elProgBar.addEventListener('touchstart', (e) => {
             draggingProg = true;
+            elProgFill.style.transition = 'none';
+            elProgDot.style.transition = 'none';
             seekFromEvent(e);
         }, { passive: true });
         elProgBar.addEventListener('touchmove', (e) => {
             if (draggingProg) seekFromEvent(e);
         }, { passive: true });
-        elProgBar.addEventListener('touchend', () => { draggingProg = false; });
+        elProgBar.addEventListener('touchend', () => {
+            elProgFill.style.transition = '';
+            elProgDot.style.transition = '';
+            draggingProg = false;
+        });
 
         // ============ 播放控制 ============
         elPlayBtn.addEventListener('click', togglePlay);
@@ -1626,6 +1812,96 @@
             if (e.code === 'ArrowRight') nextTrack(false);
             if (e.code === 'ArrowLeft') prevTrack();
         });
+
+        // ============ 播放模式 ============
+        const modeBtns = document.querySelectorAll('.mode-btn');
+
+        function updatePlayModeUI() {
+            modeBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === playMode);
+            });
+        }
+
+        function setPlayMode(mode) {
+            playMode = mode;
+            localStorage.setItem('nf_playMode', playMode);
+            updatePlayModeUI();
+            const modeNames = { sequential: '顺序播放', 'loop-one': '单曲循环', shuffle: '随机播放' };
+            showToast(modeNames[mode]);
+        }
+
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => setPlayMode(btn.dataset.mode));
+        });
+
+        // ============ 睡眠定时器 ============
+        let sleepTimerId = null;
+        let sleepRemaining = 0;
+        const elSleepBtn = document.getElementById('sleepBtn');
+        const elSleepMenu = document.getElementById('sleepMenu');
+        const elSleepStatus = document.getElementById('sleepStatus');
+
+        elSleepBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            elSleepMenu.classList.toggle('open');
+        });
+
+        document.addEventListener('click', () => {
+            elSleepMenu.classList.remove('open');
+        });
+
+        elSleepMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        elSleepMenu.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const min = parseInt(btn.dataset.min);
+                elSleepMenu.classList.remove('open');
+                if (min === 0) {
+                    stopSleepTimer();
+                    showToast('睡眠定时器已关闭');
+                } else {
+                    startSleepTimer(min);
+                }
+            });
+        });
+
+        function startSleepTimer(minutes) {
+            if (sleepTimerId) clearInterval(sleepTimerId);
+            sleepRemaining = minutes * 60;
+            elSleepBtn.classList.add('active');
+            elSleepStatus.textContent = fmtSleep(sleepRemaining);
+            sleepTimerId = setInterval(() => {
+                sleepRemaining--;
+                elSleepStatus.textContent = fmtSleep(sleepRemaining);
+                if (sleepRemaining <= 0) {
+                    clearInterval(sleepTimerId);
+                    sleepTimerId = null;
+                    elSleepBtn.classList.remove('active');
+                    elSleepStatus.textContent = '';
+                    if (isPlaying) togglePlay();
+                    showToast('睡眠定时器: 已停止播放');
+                }
+            }, 1000);
+            showToast(minutes + ' 分钟后停止播放');
+        }
+
+        function stopSleepTimer() {
+            if (sleepTimerId) {
+                clearInterval(sleepTimerId);
+                sleepTimerId = null;
+            }
+            sleepRemaining = 0;
+            elSleepBtn.classList.remove('active');
+            elSleepStatus.textContent = '';
+        }
+
+        function fmtSleep(sec) {
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return m + ':' + String(s).padStart(2, '0');
+        }
 
         // ============ 动态电台统计 ============
         // 歌曲风格 → 基准频率、听众、互动率
@@ -1697,10 +1973,16 @@
 
         // 初始化
         buildBars();
+        initVisLoop();
         loadTrack(0);
         updateClock();
         setInterval(updateClock, 1000);
+        // 恢复保存的音量到 UI
+        elVolRange.value = volume;
+        elVolVal.textContent = volume;
         updateVolSlider();
+        // 恢复保存的播放模式到 UI
+        updatePlayModeUI();
     </script>
 </body>
 </html>
