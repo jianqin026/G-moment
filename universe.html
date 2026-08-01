@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title> 宇宙模拟器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text);
+    transition: background 0.3s, color 0.3s;
+  }
+
+  /* ===== 三套扁平主题（深空蓝 / 星云紫 / 熔岩金）===== */
+  :root, .theme-astronaut {
+    --bg: #0d1b2a; --panel: #1b263b; --border: #415a77;
+    --sub: #8091ad; --text: #e0e1dd;
+    --accent: #5bc0be; --warn: #f4a261;
+    --th-bg: #0d1b2a; --input-bg: #0d1b2a;
+  }
+  .theme-nebula {
+    --bg: #0f0c29; --panel: #241e47; --border: #574a8f;
+    --sub: #a89ce0; --text: #ece7ff;
+    --accent: #a855f7; --warn: #fbbf24;
+    --th-bg: #18133a; --input-bg: #18133a;
+  }
+  .theme-lava {
+    --bg: #14100a; --panel: #2a2014; --border: #6b4a2f;
+    --sub: #c9a277; --text: #f7ead9;
+    --accent: #f4a261; --warn: #ffd166;
+    --th-bg: #1d160d; --input-bg: #1d160d;
+  }
+
+  /* 扁平面板（实色 + 细边框，无模糊无重阴影） */
+  .panel {
+    position: fixed;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    user-select: none;
+    z-index: 10;
+  }
+
+  /* 左下：控制面板 */
+  #controls { left: 14px; bottom: 14px; width: 252px; font-size: 13px; max-height: calc(100vh - 28px); overflow-y: auto; }
+  #controls h1 { font-size: 15px; margin-bottom: 8px; letter-spacing: 1px; color: var(--text); }
+  #controls h1 .icon { margin-right: 4px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 7px 0; }
+  .row label { flex: 0 0 74px; color: var(--sub); font-size: 12px; }
+  .row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+  .row .val { flex: 0 0 44px; text-align: right; font-size: 12px; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .ginput {
+    flex: 0 0 60px; min-width: 0; width: 60px;
+    background: var(--input-bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 3px 5px; font-size: 12px; text-align: right;
+    font-variant-numeric: tabular-nums;
+    appearance: textfield; -moz-appearance: textfield;
+  }
+  .ginput::-webkit-inner-spin-button, .ginput::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .ginput:focus { outline: none; border-color: var(--accent); }
+  .ginput:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .typebtns { flex: 1; display: flex; gap: 6px; flex-wrap: wrap; }
+  .typebtns label { flex: 0 0 auto; display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--sub); cursor: pointer; }
+  .typebtns input, .row input[type="checkbox"] { accent-color: var(--accent); }
+  select, button {
+    background: var(--border);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  select:hover, button:hover { border-color: var(--accent); }
+  .btnrow { display: flex; gap: 6px; margin-top: 8px; }
+  .btnrow button { flex: 1; }
+  #hint { margin-top: 10px; font-size: 11px; line-height: 1.7; color: var(--sub); border-top: 1px solid var(--border); padding-top: 8px; }
+
+  /* 设置面板选项卡 */
+  .tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+  .tab {
+    flex: 1; text-align: center; padding: 5px 0; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 6px 6px 0 0;
+    color: var(--sub); font-size: 12px; background: var(--th-bg);
+  }
+  .tab:hover { color: var(--text); border-color: var(--border); }
+  .tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .tabpane { display: none; }
+  .tabpane.active { display: block; }
+
+  /* 右上：统计 */
+  #stats { right: 14px; top: 14px; font-size: 12px; min-width: 150px; text-align: right; line-height: 1.8; color: var(--sub); }
+  #stats b { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  /* 选中天体信息 */
+  #info {
+    right: 14px; top: 130px; font-size: 12px; min-width: 170px; line-height: 1.8;
+    display: none;
+  }
+  #info .title { color: var(--text); margin-bottom: 4px; }
+  #info .close { float: right; cursor: pointer; color: var(--sub); font-size: 13px; }
+  #info .close:hover { color: var(--warn); }
+
+  /* 吞噬提示 */
+  #feed { position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 13px; color: var(--warn);
+    opacity: 0; transition: opacity 0.8s; pointer-events: none; z-index: 20; }
+
+  /* 攻略按钮与面板 */
+  #guideBtn {
+    position: fixed; right: 14px; bottom: 14px; z-index: 30;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 8px 16px; font-size: 13px; cursor: pointer;
+  }
+  #guideBtn:hover { border-color: var(--accent); }
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .guide {
+    width: min(620px, 92vw); max-height: 84vh; overflow-y: auto;
+    background: var(--panel);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 22px;
+  }
+  .guide-title { font-size: 17px; color: var(--text); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .gclose { cursor: pointer; color: var(--sub); font-size: 15px; }
+  .gclose:hover { color: var(--warn); }
+  .guide-body { font-size: 13px; line-height: 1.8; color: var(--text); }
+  .guide-body h3 { color: var(--accent); font-size: 14px; margin: 14px 0 6px; }
+  .guide-body table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+  .guide-body th, .guide-body td { border: 1px solid var(--border); padding: 4px 8px; font-size: 12px; text-align: left; }
+  .guide-body th { color: var(--text); background: var(--th-bg); }
+  .guide-body td { color: var(--sub); }
+  input:focus-visible, select:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+</style>
+</head>
+<body class="theme-astronaut">
+<canvas id="canvas"></canvas>
+
+<div class="panel" id="controls">
+  <h1><span class="icon">🪐</span>宇宙模拟器</h1>
+  <div class="tabs">
+    <button class="tab active" data-tab="base"> 基础</button>
+    <button class="tab" data-tab="view"> 显示</button>
+    <button class="tab" data-tab="scene"> 场景</button>
+  </div>
+  <div class="tabpane active" id="pane-base">
+    <div class="row"><label>引力常数 G</label><input type="range" id="gSlider" min="10" max="30000" step="10" value="300"><input type="number" id="gInput" class="ginput" value="300" min="1" step="any"></div>
+    <div class="row"><label>时间倍速</label><input type="range" id="timeSlider" min="-200" max="200" step="1" value="0"><span class="val" id="timeVal">1×</span></div>
+    <div class="row"><label>天体质量</label><input type="range" id="massSlider" min="5" max="2000" step="5" value="100"><span class="val" id="massVal">100</span></div>
+    <div class="row"><label>新天体</label>
+      <div class="typebtns">
+        <label><input type="radio" name="btype" value="planet" checked><span>🪐行星</span></label>
+        <label><input type="radio" name="btype" value="star"><span>⭐恒星</span></label>
+        <label><input type="radio" name="btype" value="blackhole"><span>🕳️黑洞</span></label>
+      </div>
+    </div>
+  </div>
+  <div class="tabpane" id="pane-view">
+    <div class="row"><label>尾迹</label><input type="checkbox" id="trailCk" checked><span style="font-size:12px;color:var(--sub)">显示轨道尾迹</span></div>
+    <div class="row"><label>预测轨道</label><input type="checkbox" id="orbitCk" checked><span style="font-size:12px;color:var(--sub)">显示预计轨道</span></div>
+    <div class="row"><label>界面主题</label>
+      <select id="themeSel">
+        <option value="astronaut" selected>深空蓝</option>
+        <option value="nebula">星云紫</option>
+        <option value="lava"> 熔岩金</option>
+      </select>
+    </div>
+  </div>
+  <div class="tabpane" id="pane-scene">
+    <div class="row"><label>预设场景</label>
+      <select id="presetSel">
+        <option value="binary">双星系统</option>
+        <option value="galaxy"> 螺旋星系</option>
+        <option value="solar" selected>太阳系</option>
+        <option value="collide">黑洞对撞</option>
+        <option value="cluster"> 星团</option>
+        <option value="chaos"> 随机混沌</option>
+        <option value="accretion">黑洞吸积盘</option>
+      </select>
+    </div>
+  </div>
+  <div class="btnrow">
+    <button id="loadBtn">加载</button>
+    <button id="pauseBtn">⏸ 暂停</button>
+    <button id="resetBtn">重置</button>
+    <button id="clearBtn">清空</button>
+  </div>
+  <div id="hint">
+    🖱 左键拖拽 = 生成天体并设定初速度<br>
+    🖱 点击天体 = 选中 · 右键/Delete = 删除<br>
+    ⌨ Alt+左键 或 中键拖拽 = 平移 · 滚轮 = 缩放<br>
+    ␣ 空格 = 暂停/继续
+  </div>
+</div>
+
+<div class="panel" id="stats">
+  天体: <b id="stCount">0</b> &nbsp;FPS: <b id="stFps">0</b><br>
+  模拟时间: <b id="stTime">0.0s</b> &nbsp;吞噬: <b id="stFeed">0</b>
+</div>
+
+<div class="panel" id="info">
+  <span class="close" id="infoClose">✕</span>
+  <div class="title" id="infoTitle">选中天体</div>
+  <div id="infoBody"></div>
+</div>
+
+<div id="feed"></div>
+
+<button id="guideBtn" title="打开攻略">📖 攻略</button>
+<div id="guideOverlay" class="overlay" style="display:none">
+  <div class="guide">
+    <div class="guide-title">🪐 宇宙模拟器攻略 <span class="gclose" id="guideClose">✕</span></div>
+    <div class="guide-body">
+      <h3>🎮 操作速查</h3>
+      <table>
+        <tr><th>操作</th><th>效果</th></tr>
+        <tr><td>左键拖拽空白</td><td>生成天体 + 设定初速度（箭头预览）</td></tr>
+        <tr><td>点击天体</td><td>选中 + 相机居中跟踪（看质量/速度/能量）</td></tr>
+        <tr><td>右键 / Delete</td><td>删除选中天体</td></tr>
+        <tr><td>滚轮</td><td>缩放（0.1×~8×）</td></tr>
+        <tr><td>Alt+左键 / 中键拖</td><td>平移视口</td></tr>
+        <tr><td>空格</td><td>暂停 / 继续</td></tr>
+        <tr><td>点击空白</td><td>退出跟踪模式</td></tr>
+      </table>
+      <h3>🎛 面板参数</h3>
+      <table>
+        <tr><th>参数</th><th>说明</th></tr>
+        <tr><td>引力常数 G</td><td>整体引力强度：越大轨道越快越紧，越小越松散（可输入）</td></tr>
+        <tr><td>时间倍速</td><td>0.01×~100× 全范围真实生效，看演化 / 看细节</td></tr>
+        <tr><td>天体质量</td><td>新天体的质量，决定半径与引力影响力</td></tr>
+        <tr><td>新天体类型</td><td>🪐行星 / ⭐恒星 / 🕳️黑洞，切换时质量自动匹配</td></tr>
+        <tr><td>尾迹 / 预测轨道</td><td>轨道拖尾；大天体淡椭圆 + 选中体亮虚线预测</td></tr>
+      </table>
+      <h3>🔬 物理机制</h3>
+      真实 n-body 万有引力（leapfrog 积分）：速度合适 → 椭圆轨道；太快 → 逃逸；太慢 → 坠入。
+      天体相撞质量相加（动量守恒）；<b>黑洞吞噬</b>质量差 20 倍以上的小体时橙色闪光。
+      黑洞吸积盘粒子带微阻力，螺旋内落。
+      <h3>🌌 七大预设</h3>
+      <table>
+        <tr><th>预设</th><th>看点 / 推荐</th></tr>
+        <tr><td>螺旋星系</td><td>650 体旋臂演化；跟踪中心黑洞调 10×~30×</td></tr>
+        <tr><td>双星系统</td><td>两恒星互绕；加行星看三体混沌</td></tr>
+        <tr><td>太阳系</td><td>8 行星圆轨道；1× 慢速看行星公转</td></tr>
+        <tr><td>黑洞对撞</td><td>双黑洞椭圆互绕合并；调 5×~20× 看对撞</td></tr>
+        <tr><td>星团</td><td>320 天体坍缩合并；调 20× 看星团成型</td></tr>
+        <tr><td>随机混沌</td><td>280 体碰撞演化；看自然合并成团</td></tr>
+        <tr><td>黑洞吸积盘</td><td>炽热粒子螺旋内落；1×~2× 看吞噬闪光</td></tr>
+      </table>
+      <h3>🚀 进阶技巧</h3>
+      <b>造太阳系</b>：选 ⭐ 恒星生成一颗 → 切 🪐 行星在旁拖拽（速度垂直连线）→ 开预测轨道微调。<br>
+      <b>黑洞吞噬秀</b>：吸积盘预设调 10×，看粒子被吞、闪光连发。<br>
+      <b>轨道口诀</b>：圆轨道速度 ≈ √(G·M/r)——质量×G 定引力源，距离定轨道尺度。
+      <h3>⚡ 性能提示</h3>
+      天体上限 1200；卡顿先关<b>尾迹</b>（最耗渲染）。帧率自适应自动降子步，无需手动。
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// PHYSICS-START  ——  纯物理引擎（无 DOM 依赖，node 可提取测试）
+// ============================================================
+const PHYS_DT = 1 / 240;        // 固定物理步长（秒）
+const SOFTENING = 2;            // 软化常数 ε（像素），防 r→0 奇点
+const TRAIL_LEN = 50;           // 尾迹长度（帧）
+const MAX_BODIES = 1200;        // 天体数量上限
+const MAX_SUB_DT_MULT = 16;     // 物理步长上限（PHYS_DT 的倍数，leapfrog 稳定域）
+
+// 天体类型 -> 颜色色相（渲染用）
+const TYPE_HUE = { star: 30, planet: 205, blackhole: 272 };
+
+function radiusFromMass(m) {
+  // 半径 ∝ 质量^(1/3)，观感缩放
+  return 1.2 + 3.2 * Math.cbrt(m / 100);
+}
+
+function makeBody(x, y, vx, vy, mass, type) {
+  return {
+    x, y, vx, vy, mass,
+    type: type || 'planet',
+    radius: radiusFromMass(mass),
+    ax: 0, ay: 0,             // 加速度缓存（leapfrog 半 kick 用）
+    trail: [],                // 世界坐标尾迹点
+    dead: false,              // 待删除标记
+    born: 0                   // 出生时间（物理秒）
+  };
+}
+
+// O(n²) 加速度计算：每对天体一次对称计算
+function computeAccelerations(bodies, G, eps) {
+  const n = bodies.length;
+  for (let i = 0; i < n; i++) {
+    bodies[i].ax = 0;
+    bodies[i].ay = 0;
+  }
+  for (let i = 0; i < n; i++) {
+    const a = bodies[i];
+    for (let j = i + 1; j < n; j++) {
+      const b = bodies[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const r2 = dx * dx + dy * dy + eps * eps;
+      const invR3 = 1 / (r2 * Math.sqrt(r2));
+      // a 受 b 的加速度: G·mb/r³·dr ; b 受 a: -G·ma/r³·dr
+      a.ax += G * b.mass * invR3 * dx;
+      a.ay += G * b.mass * invR3 * dy;
+      b.ax -= G * a.mass * invR3 * dx;
+      b.ay -= G * a.mass * invR3 * dy;
+    }
+  }
+}
+
+// Leapfrog / velocity-Verlet 单步（进入时 ax,ay 为上一步缓存值）
+function stepUniverse(bodies, dt, G, eps) {
+  for (const b of bodies) {
+    b.vx += 0.5 * b.ax * dt;
+    b.vy += 0.5 * b.ay * dt;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+  }
+  computeAccelerations(bodies, G, eps);
+  for (const b of bodies) {
+    b.vx += 0.5 * b.ax * dt;
+    b.vy += 0.5 * b.ay * dt;
+  }
+}
+
+// 碰撞合并。返回吞噬事件数组 [{x,y}]（渲染层附加时间戳）
+function collideBodies(bodies) {
+  const TYPE_PRIORITY = { blackhole: 3, star: 2, planet: 1 };
+  const feedEvents = [];
+  const n = bodies.length;
+  for (let i = 0; i < n; i++) {
+    const a = bodies[i];
+    if (a.dead) continue;
+    for (let j = i + 1; j < n; j++) {
+      const b = bodies[j];
+      if (b.dead) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const rr = a.radius + b.radius;
+      if (dx * dx + dy * dy > rr * rr) continue;
+      // 合并：动量守恒、质心位置（先保存原始质量——合并会覆盖 keep.mass）
+      const ma = a.mass, mb = b.mass;
+      const m = ma + mb;
+      const keep = a, del = b;
+      keep.x = (a.x * ma + b.x * mb) / m;
+      keep.y = (a.y * ma + b.y * mb) / m;
+      keep.vx = (a.vx * ma + b.vx * mb) / m;
+      keep.vy = (a.vy * ma + b.vy * mb) / m;
+      keep.mass = m;
+      keep.radius = radiusFromMass(m);
+      // 类型取优先级高的
+      if (TYPE_PRIORITY[del.type] > TYPE_PRIORITY[keep.type]) keep.type = del.type;
+      // 黑洞吞噬判定（与下标顺序无关：合并结果为黑洞且原始质量悬殊）
+      const ratio = Math.max(ma, mb) / Math.min(ma, mb);
+      if (keep.type === 'blackhole' && ratio > 20) {
+        feedEvents.push({ x: keep.x, y: keep.y });
+      }
+      del.dead = true;
+    }
+  }
+  return bodies.filter(b => !b.dead).length !== n
+    ? { bodies: bodies.filter(b => !b.dead), feedEvents }
+    : { bodies, feedEvents };
+}
+
+// ---------- 预计轨道 ----------
+// 开普勒轨道要素：天体(质量 mass)在质心系中绕系统质心(M = 系统总质量)的椭圆轨道。
+// 两体精确式：天体绕质心的运动等价于中心质量 (M−m)³/M² 的中心场（m≪M 时退化为 M−m）。
+// 返回 {a, e, p, theta0}（半长轴/离心率/半通径/近日点角），非束缚或不可画时返回 null。
+function computeKeplerOrbit(bx, by, bvx, bvy, mass, comX, comY, comVx, comVy, G, M) {
+  const rx = bx - comX, ry = by - comY;
+  const vx = bvx - comVx, vy = bvy - comVy;
+  const r = Math.hypot(rx, ry);
+  if (r < 1e-6) return null;               // 位于质心（如中心黑洞自身）
+  const v2 = vx * vx + vy * vy;
+  const mu = G * (M - mass) ** 3 / (M * M);
+  const eps = v2 / 2 - mu / r;             // 比能量
+  if (eps >= 0) return null;               // 抛物线/双曲 → 逃逸
+  const h = rx * vy - ry * vx;             // 角动量 z 分量
+  if (h === 0) return null;                // 纯径向
+  const a = -mu / (2 * eps);
+  const e = Math.sqrt(Math.max(0, 1 + 2 * eps * h * h / (mu * mu)));
+  if (e >= 0.97 || a > 5000) return null;  // 极扁/巨轨道不画
+  const p = h * h / mu;
+  // 近日点方向（拉普拉斯-龙格-楞次向量）：e_vec = (v×h)/μ − r̂
+  const ex = (vy * h) / mu - rx / r;
+  const ey = (-vx * h) / mu - ry / r;
+  return { a, e, p, theta0: Math.atan2(ey, ex) };
+}
+
+// 椭圆采样点（世界坐标，samples 个点闭合一周，末点回到起点）
+function keplerOrbitPoints(orbit, comX, comY, samples) {
+  const { e, p, theta0 } = orbit;
+  const pts = new Array(samples + 1);
+  for (let i = 0; i < samples; i++) {
+    const th = (i / samples) * Math.PI * 2;
+    const rr = p / (1 + e * Math.cos(th));
+    pts[i] = {
+      x: comX + Math.cos(theta0 + th) * rr,
+      y: comY + Math.sin(theta0 + th) * rr
+    };
+  }
+  pts[samples] = pts[0];                   // 闭合
+  return pts;
+}
+
+// 多体数值预测：场源(others)位置冻结，leapfrog 前向积分 steps×dt 秒，
+// 返回预测路径点数组（每 4 步取一点）。支持 drag 阻尼（吸积盘螺旋）。
+function predictOrbit(body, others, G, steps, dt) {
+  const pred = { x: body.x, y: body.y, vx: body.vx, vy: body.vy, mass: body.mass, drag: body.drag || 0 };
+  const eps = SOFTENING;
+  let ax = 0, ay = 0;
+  for (const o of others) {
+    const dx = o.x - pred.x, dy = o.y - pred.y;
+    const r2 = dx * dx + dy * dy + eps * eps;
+    const inv = 1 / (r2 * Math.sqrt(r2));
+    ax += G * o.mass * inv * dx;
+    ay += G * o.mass * inv * dy;
+  }
+  const pts = [{ x: pred.x, y: pred.y }];
+  const dragF = pred.drag ? (1 - pred.drag * 240 * dt) : 1;
+  for (let s = 0; s < steps; s++) {
+    pred.vx = pred.vx * dragF + 0.5 * ax * dt;
+    pred.vy = pred.vy * dragF + 0.5 * ay * dt;
+    pred.x += pred.vx * dt;
+    pred.y += pred.vy * dt;
+    ax = 0; ay = 0;
+    for (const o of others) {
+      const dx = o.x - pred.x, dy = o.y - pred.y;
+      const r2 = dx * dx + dy * dy + eps * eps;
+      const inv = 1 / (r2 * Math.sqrt(r2));
+      ax += G * o.mass * inv * dx;
+      ay += G * o.mass * inv * dy;
+    }
+    pred.vx += 0.5 * ax * dt;
+    pred.vy += 0.5 * ay * dt;
+    if (s % 4 === 3) pts.push({ x: pred.x, y: pred.y });
+  }
+  return pts;
+}
+
+// 解析正数输入（通用）：合法返回 number，否则返回 null
+function parsePositiveInput(str) {
+  const v = Number(String(str).trim());
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+
+// 解析 G 常数输入：额外钳制合理范围 [1e-3, 1e6]，
+// 防极端值 G·m 溢出为 Infinity 污染全部天体（1e308×22000 → Infinity → NaN）
+function parseGInput(str) {
+  const v = Number(String(str).trim());
+  return Number.isFinite(v) && v >= 1e-3 && v <= 1e6 ? v : null;
+}
+
+// 新天体类型的合理默认质量（切换类型时质量滑块联动）
+const TYPE_DEFAULT_MASS = { planet: 100, star: 500, blackhole: 1500 };
+
+// 帧调度：模拟时间债累积 → 动态加粗物理步长消化时间。
+// 慢速时精确（时间债保留到下帧），高速时用大步长在 MAX_SUBSTEPS 内完成。
+// 步长硬上限 MAX_SUB_DT_MULT×PHYS_DT ≈ 67ms：leapfrog 稳定域 ω·dt<2，
+// 最紧轨道（galaxy 内圈 ω≈5.5 rad/s）ω·dt≈0.37，余量充足。
+// 返回 { accum, subDt, substeps }；substeps=0 表示本帧不推进（时间债累积中）。
+function scheduleSubsteps(accum, dtFrame, timeScale, maxSubsteps) {
+  accum += dtFrame * timeScale;
+  let big = Math.ceil(accum / (PHYS_DT * maxSubsteps));
+  big = Math.max(1, Math.min(big, MAX_SUB_DT_MULT));   // 下界 1 防 subDt=0 除零
+  const subDt = PHYS_DT * big;
+  let substeps = Math.floor(accum / subDt);
+  accum -= substeps * subDt;
+  substeps = Math.min(substeps, maxSubsteps);   // 步长受限时丢弃超额时间（性能保护）
+  return { accum, subDt, substeps };
+}
+
+// 预设场景生成器 ----------
+function presetBinary() {
+  const G = 300, m = 3000, d = 150;
+  const omega = Math.sqrt(G * (m + m) / (d * d * d));
+  const v = omega * d / 2;
+  const bodies = [];
+  bodies.push(makeBody(-d / 2, 0, 0, -v, m, 'star'));
+  bodies.push(makeBody(d / 2, 0, 0, v, m, 'star'));
+  // 少量远距离行星点缀
+  for (let i = 0; i < 6; i++) {
+    const ang = (i / 6) * Math.PI * 2;
+    const r = 320 + i * 40;
+    const vo = Math.sqrt(G * (2 * m) / r);
+    bodies.push(makeBody(Math.cos(ang) * r, Math.sin(ang) * r,
+      -Math.sin(ang) * vo, Math.cos(ang) * vo, 8, 'planet'));
+  }
+  return bodies;
+}
+
+function presetGalaxy() {
+  const G = 300, Mbh = 22000, count = 650;
+  const bodies = [];
+  bodies.push(makeBody(0, 0, 0, 0, Mbh, 'blackhole'));
+  for (let i = 0; i < count; i++) {
+    // 圆盘密度 ~ 1/r，半径 60..420
+    const r = 60 + 360 * Math.sqrt(Math.random());
+    const ang = Math.random() * Math.PI * 2;
+    const m = 0.8 + Math.random() * 6;
+    // 开普勒速度（中心黑洞主导）
+    const vk = Math.sqrt(G * Mbh / r);
+    const v = vk * (0.96 + Math.random() * 0.08);
+    bodies.push(makeBody(
+      Math.cos(ang) * r, Math.sin(ang) * r,
+      -Math.sin(ang) * v, Math.cos(ang) * v,
+      m, 'planet'));
+  }
+  return bodies;
+}
+
+function presetChaos() {
+  const bodies = [];
+  const count = 280;
+  for (let i = 0; i < count; i++) {
+    const m = 2 + Math.pow(Math.random(), 2.5) * 200;
+    const type = m > 60 ? 'star' : 'planet';
+    bodies.push(makeBody(
+      (Math.random() - 0.5) * 1400,
+      (Math.random() - 0.5) * 1400,
+      (Math.random() - 0.5) * 2.4,
+      (Math.random() - 0.5) * 2.4,
+      m, type));
+  }
+  return bodies;
+}
+
+function presetAccretion() {
+  const G = 300, Mbh = 40000;
+  const bodies = [makeBody(0, 0, 0, 0, Mbh, 'blackhole')];
+  // 炽热吸积盘：粒子紧贴黑洞（55~150px）、暖色、内落快——与冷色螺旋星系区分
+  for (let i = 0; i < 64; i++) {
+    const r = 55 + Math.random() * 95;
+    const ang = Math.random() * Math.PI * 2;
+    const vk = Math.sqrt(G * Mbh / r) * 0.97;
+    const m = 1 + Math.random() * 4;
+    const b = makeBody(
+      Math.cos(ang) * r, Math.sin(ang) * r,
+      -Math.sin(ang) * vk, Math.cos(ang) * vk,
+      m, 'planet');
+    b.hue = 18 + Math.random() * 30;   // 橙色炽热盘
+    b.drag = 0.00025;                  // 内落更快（每物理步，≈ 原 0.0001 的 2.5 倍）
+    bodies.push(b);
+  }
+  return bodies;
+}
+
+// 太阳系：中心恒星 + 8 行星（距离递增、冷色系渐变）
+function presetSolar() {
+  const G = 300, Msun = 8000;
+  const bodies = [makeBody(0, 0, 0, 0, Msun, 'star')];
+  const planets = [
+    [70, 4, 205], [100, 7, 195], [135, 12, 190], [175, 30, 175],
+    [230, 8, 160], [290, 20, 140], [350, 28, 125], [420, 5, 110]
+  ];
+  for (const [r, m, hue] of planets) {
+    const v = Math.sqrt(G * Msun / r);
+    const ang = Math.random() * Math.PI * 2;
+    const b = makeBody(
+      Math.cos(ang) * r, Math.sin(ang) * r,
+      -Math.sin(ang) * v, Math.cos(ang) * v,
+      m, 'planet');
+    b.hue = hue;
+    bodies.push(b);
+  }
+  return bodies;
+}
+
+// 黑洞对撞：双黑洞椭圆互绕（远日点出发）+ 尘埃粒子
+function presetCollide() {
+  const G = 300, m = 26000;
+  const bodies = [];
+  const a = 200, e = 0.55;
+  const mu = G * (m + m);
+  const r0 = a * (1 + e);                        // 远日点距离
+  const v0 = Math.sqrt(mu * (2 / r0 - 1 / a));   // 远日点相对速度（vis-viva）
+  bodies.push(makeBody(-r0 / 2, 0, 0, v0 / 2, m, 'blackhole'));
+  bodies.push(makeBody(r0 / 2, 0, 0, -v0 / 2, m, 'blackhole'));
+  for (let i = 0; i < 40; i++) {
+    const r = 420 + Math.random() * 200;
+    const ang = Math.random() * Math.PI * 2;
+    const vk = Math.sqrt(G * 2 * m / r) * (0.97 + Math.random() * 0.06);
+    const b = makeBody(
+      Math.cos(ang) * r, Math.sin(ang) * r,
+      -Math.sin(ang) * vk, Math.cos(ang) * vk,
+      2 + Math.random() * 3, 'planet');
+    b.hue = 265 + Math.random() * 35;            // 紫罗兰尘埃
+    bodies.push(b);
+  }
+  return bodies;
+}
+
+// 星团：320 恒星球状分布，维里化速度 → 缓慢坍缩合并
+function presetCluster() {
+  const G = 300;
+  const bodies = [];
+  const count = 320;
+  const Mapprox = count * 100 * 0.5;             // 星团有效质量近似
+  for (let i = 0; i < count; i++) {
+    const r = 80 + 420 * Math.sqrt(Math.random());
+    const ang = Math.random() * Math.PI * 2;
+    const m = 20 + Math.random() * 180;
+    const vk = Math.sqrt(G * Mapprox / r) * (0.7 + Math.random() * 0.4);
+    const b = makeBody(
+      Math.cos(ang) * r, Math.sin(ang) * r,
+      -Math.sin(ang) * vk, Math.cos(ang) * vk,
+      m, m > 120 ? 'star' : 'planet');
+    bodies.push(b);
+  }
+  return bodies;
+}
+
+function createPreset(name) {
+  if (name === 'binary') return presetBinary();
+  if (name === 'chaos') return presetChaos();
+  if (name === 'accretion') return presetAccretion();
+  if (name === 'solar') return presetSolar();
+  if (name === 'collide') return presetCollide();
+  if (name === 'cluster') return presetCluster();
+  return presetGalaxy();
+}
+
+// 导出让 node 测试脚本提取（浏览器中无害）
+if (typeof globalThis !== 'undefined') {
+  globalThis.UNIVERSE_PHYSICS = {
+    PHYS_DT, SOFTENING, TRAIL_LEN, MAX_BODIES, TYPE_HUE,
+    radiusFromMass, makeBody, computeAccelerations,
+    stepUniverse, collideBodies, createPreset,
+    computeKeplerOrbit, keplerOrbitPoints, predictOrbit,
+    scheduleSubsteps, MAX_SUB_DT_MULT, parsePositiveInput, parseGInput,
+    TYPE_DEFAULT_MASS
+  };
+}
+// PHYSICS-END
+// ============================================================
+
+// ============================================================
+// 渲染层
+// ============================================================
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+const camera = { cx: 0, cy: 0, zoom: 1 };
+
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = canvas.clientWidth = window.innerWidth;
+  H = canvas.clientHeight = window.innerHeight;
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  buildStars();
+}
+window.addEventListener('resize', resize);
+
+function worldToScreen(wx, wy) {
+  return {
+    x: (wx - camera.cx) * camera.zoom + W / 2,
+    y: (wy - camera.cy) * camera.zoom + H / 2
+  };
+}
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - W / 2) / camera.zoom + camera.cx,
+    y: (sy - H / 2) / camera.zoom + camera.cy
+  };
+}
+
+// 背景星点（屏幕相对坐标，随视口平移缓动）
+let stars = [];
+function buildStars() {
+  stars = [];
+  for (let i = 0; i < 420; i++) {
+    stars.push({
+      x: Math.random(), y: Math.random(),
+      r: 0.4 + Math.random() * 1.1,
+      a: 0.15 + Math.random() * 0.5,
+      tw: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+// 主题 → 场景背景渐变（与 UI 主题联动）
+const THEME_SKY = {
+  astronaut: ['#0b1030', '#060818', '#020208'],
+  nebula: ['#1a1236', '#0d0820', '#05030f'],
+  lava: ['#241505', '#120b04', '#060302']
+};
+let currentTheme = 'astronaut';
+
+function drawBackground(t) {
+  // 深空渐变（随主题切换）
+  const sky = THEME_SKY[currentTheme];
+  const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.75);
+  g.addColorStop(0, sky[0]);
+  g.addColorStop(0.55, sky[1]);
+  g.addColorStop(1, sky[2]);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  // 星点（视差 0.12，缩放 0.5，闪烁）
+  const px = camera.cx * camera.zoom * 0.12;
+  const py = camera.cy * camera.zoom * 0.12;
+  const sz = Math.max(W, H) * 0.5 * 0.5;
+  for (const s of stars) {
+    let sx = (s.x * W - px) % W; if (sx < 0) sx += W;
+    let sy = (s.y * H - py) % H; if (sy < 0) sy += H;
+    const twinkle = 0.7 + 0.3 * Math.sin(t * 1.5 + s.tw);
+    ctx.globalAlpha = s.a * twinkle;
+    ctx.fillStyle = '#cdd8ff';
+    ctx.beginPath();
+    ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// 天体类型 -> 颜色（预设可用 b.hue 覆盖色相）
+function bodyColor(b) {
+  const hue = b.hue ?? TYPE_HUE[b.type] ?? 205;
+  return `hsl(${hue}, 90%, 62%)`;
+}
+
+function drawBody(b, t) {
+  const p = worldToScreen(b.x, b.y);
+  if (p.x < -80 || p.x > W + 80 || p.y < -80 || p.y > H + 80) return;
+  const r = Math.max(0.4, b.radius * camera.zoom);
+
+  if (b.type === 'blackhole') {
+    // 吸积盘光环
+    const ring = ctx.createRadialGradient(p.x, p.y, r * 0.4, p.x, p.y, r * 2.6);
+    ring.addColorStop(0, 'rgba(255,140,60,0.0)');
+    ring.addColorStop(0.55, 'rgba(255,170,80,0.55)');
+    ring.addColorStop(0.8, 'rgba(255,120,40,0.15)');
+    ring.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = ring;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r * 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    // 事件视界
+    ctx.fillStyle = '#05050c';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(150,120,255,0.8)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else {
+    // 发光（仅较大天体）
+    if (r > 6) {
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.8);
+      glow.addColorStop(0, 'rgba(255,255,255,0.35)');
+      glow.addColorStop(0.4, hexToRgba(bodyColor(b), 0.25));
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 2.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = bodyColor(b);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.4, r), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function hexToRgba(hslColor, a) {
+  // 将 hsl(...) 字符串转 rgba —— 用于发光渐变
+  const m = hslColor.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+  if (!m) return `rgba(150,180,255,${a})`;
+  const h = +m[1], s = +m[2] / 100, l = +m[3] / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = h / 60;
+  const x = c * (1 - Math.abs(hp % 2 - 1));
+  let r = 0, g = 0, b = 0;
+  if (hp < 1) [r, g, b] = [c, x, 0];
+  else if (hp < 2) [r, g, b] = [x, c, 0];
+  else if (hp < 3) [r, g, b] = [0, c, x];
+  else if (hp < 4) [r, g, b] = [0, x, c];
+  else if (hp < 5) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const m2 = l - c / 2;
+  return `rgba(${Math.round((r + m2) * 255)},${Math.round((g + m2) * 255)},${Math.round((b + m2) * 255)},${a})`;
+}
+
+function drawTrails() {
+  if (!trailOn) return;
+  ctx.lineWidth = 1;
+  for (const b of bodies) {
+    const tr = b.trail;
+    if (tr.length < 3) continue;
+    ctx.beginPath();
+    const p0 = worldToScreen(tr[0].x, tr[0].y);
+    ctx.moveTo(p0.x, p0.y);
+    for (let i = 1; i < tr.length; i++) {
+      const p = worldToScreen(tr[i].x, tr[i].y);
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.strokeStyle = hexToRgba(bodyColor(b), 0.35);
+    ctx.stroke();
+  }
+}
+
+// ---------- 预计轨道渲染 ----------
+// 场源：质量前 100 且 ≥ 最大质量 1%（中心主导时近似两体，快且准）；排除选中天体自身
+function selectFieldSources(bodies, selected) {
+  if (bodies.length <= 1) return [];
+  const sorted = [...bodies].sort((a, b) => b.mass - a.mass);
+  const maxM = sorted[0].mass;
+  const out = [];
+  for (let i = 0; i < sorted.length && i < 100; i++) {
+    if (sorted[i].mass < maxM * 0.01) break;
+    if (sorted[i] === selected) continue;
+    out.push(sorted[i]);
+  }
+  return out;
+}
+
+// 所有天体：极淡开普勒近似椭圆（绕系统质心，质量前 20%）
+function drawKeplerOrbits() {
+  if (!orbitOn || bodies.length < 2) return;
+  let mx = 0, my = 0, mvx = 0, mvy = 0, M = 0;
+  for (const b of bodies) {
+    mx += b.x * b.mass; my += b.y * b.mass;
+    mvx += b.vx * b.mass; mvy += b.vy * b.mass;
+    M += b.mass;
+  }
+  if (M <= 0) return;
+  mx /= M; my /= M; mvx /= M; mvy /= M;
+  const sorted = [...bodies].sort((a, b) => b.mass - a.mass);
+  const top = sorted.slice(0, Math.max(5, Math.ceil(bodies.length * 0.2)));
+  ctx.lineWidth = 1;
+  for (const b of top) {
+    if (b === selected) continue;   // 选中体画精确预测
+    const orb = computeKeplerOrbit(b.x, b.y, b.vx, b.vy, b.mass,
+      mx, my, mvx, mvy, G, M);
+    if (!orb) continue;
+    const pts = keplerOrbitPoints(orb, mx, my, 64);
+    let anyIn = false;
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const p = worldToScreen(pts[i].x, pts[i].y);
+      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      if (p.x > -80 && p.x < W + 80 && p.y > -80 && p.y < H + 80) anyIn = true;
+    }
+    if (!anyIn) continue;
+    ctx.strokeStyle = hexToRgba(bodyColor(b), 0.15);
+    ctx.stroke();
+  }
+}
+
+// 选中天体：多体数值预测（场源冻结，每 66ms 重算一次）
+let predCache = null;  // { target, points, frame }
+function drawPrediction(now) {
+  if (!orbitOn || !selected) { predCache = null; return; }
+  if (!predCache || predCache.target !== selected || now - predCache.frame > 66) {
+    const sources = selectFieldSources(bodies, selected);
+    predCache = {
+      target: selected,
+      points: predictOrbit(selected, sources, G, 400, 0.1),
+      frame: now
+    };
+  }
+  const pts = predCache.points;
+  let anyIn = false;
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (let i = 0; i < pts.length; i++) {
+    const p = worldToScreen(pts[i].x, pts[i].y);
+    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    if (p.x > -80 && p.x < W + 80 && p.y > -80 && p.y < H + 80) anyIn = true;
+  }
+  if (anyIn) {
+    ctx.strokeStyle = hexToRgba(bodyColor(selected), 0.5);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+}
+
+function drawFeedEvents(t) {
+  for (let i = feedEvents.length - 1; i >= 0; i--) {
+    const ev = feedEvents[i];
+    const age = (t - ev.t) / 1000;  // 墙钟秒
+    if (age > 1) { feedEvents.splice(i, 1); continue; }
+    if (age < 0) continue;
+    const p = worldToScreen(ev.x, ev.y);
+    const rr = Math.max(0, (1 + age * 3) * 40 * camera.zoom);
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr);
+    g.addColorStop(0, `rgba(255,220,160,${0.7 * (1 - age)})`);
+    g.addColorStop(1, 'rgba(255,140,40,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawCreationArrow() {
+  if (!creating) return;
+  const p0 = worldToScreen(dragStartWorld.x, dragStartWorld.y);
+  ctx.setLineDash([6, 5]);
+  ctx.strokeStyle = 'rgba(125,200,255,0.9)';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(p0.x, p0.y);
+  ctx.lineTo(mouse.sx, mouse.sy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // 箭头头
+  const ang = Math.atan2(mouse.sy - p0.y, mouse.sx - p0.x);
+  const L = 10;
+  ctx.beginPath();
+  ctx.moveTo(mouse.sx, mouse.sy);
+  ctx.lineTo(mouse.sx - L * Math.cos(ang - 0.4), mouse.sy - L * Math.sin(ang - 0.4));
+  ctx.moveTo(mouse.sx, mouse.sy);
+  ctx.lineTo(mouse.sx - L * Math.cos(ang + 0.4), mouse.sy - L * Math.sin(ang + 0.4));
+  ctx.stroke();
+  // 起点处新天体预览（颜色反映所选类型）
+  ctx.fillStyle = `hsl(${TYPE_HUE[newBodyType] ?? 205}, 90%, 62%)`;
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.arc(p0.x, p0.y, Math.max(1, radiusFromMass(newBodyMass) * camera.zoom * 0.5), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+// ============================================================
+// 交互层
+// ============================================================
+const mouse = { sx: 0, sy: 0 };
+let bodies = [];
+let selected = null;
+let followTarget = null;     // 跟踪居中的天体（用户交互时清除）
+let creating = false;
+let panning = false;
+let dragStartWorld = null;
+let dragStartScreen = null;
+let lastPan = null;
+let trailOn = true;
+let orbitOn = true;
+let newBodyMass = 100;
+let newBodyType = 'planet';
+document.querySelectorAll('input[name="btype"]').forEach(r => {
+  r.addEventListener('change', () => {
+    newBodyType = r.value;
+    // 类型与质量联动：跳到该类型合理默认（用户可继续手动调）
+    const def = TYPE_DEFAULT_MASS[newBodyType] ?? 100;
+    newBodyMass = def;
+    massSlider.value = def;
+    massVal.textContent = def;
+  });
+});
+
+function hitTest(sx, sy) {
+  // 从大到小找（大天体更容易点中）
+  for (let i = bodies.length - 1; i >= 0; i--) {
+    const b = bodies[i];
+    const p = worldToScreen(b.x, b.y);
+    const rr = Math.max(6, b.radius * camera.zoom) + 4;
+    const dx = sx - p.x, dy = sy - p.y;
+    if (dx * dx + dy * dy <= rr * rr) return b;
+  }
+  return null;
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  mouse.sx = e.clientX; mouse.sy = e.clientY;
+  if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    // 平移（中键 / Alt+左键）
+    panning = true;
+    followTarget = null;     // 手动平移退出跟踪
+    lastPan = { sx: e.clientX, sy: e.clientY };
+    e.preventDefault();
+    return;
+  }
+  if (e.button !== 0) return;
+  const hit = hitTest(e.clientX, e.clientY);
+  if (hit) {
+    selected = hit;
+    followTarget = hit;      // 点击天体：居中跟踪
+    updateInfoPanel();
+  } else {
+    creating = true;
+    followTarget = null;     // 点击空白退出跟踪
+    dragStartScreen = { sx: e.clientX, sy: e.clientY };
+    dragStartWorld = screenToWorld(e.clientX, e.clientY);
+    selected = null;
+    hideInfoPanel();
+  }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  mouse.sx = e.clientX; mouse.sy = e.clientY;
+  if (panning) {
+    const dx = e.clientX - lastPan.sx;
+    const dy = e.clientY - lastPan.sy;
+    camera.cx -= dx / camera.zoom;
+    camera.cy -= dy / camera.zoom;
+    lastPan = { sx: e.clientX, sy: e.clientY };
+  }
+});
+
+window.addEventListener('mouseup', (e) => {
+  if (panning) { panning = false; return; }
+  if (!creating) return;
+  creating = false;
+  const dx = e.clientX - dragStartScreen.sx;   // 屏幕像素拖拽量
+  const dy = e.clientY - dragStartScreen.sy;
+  if (dx * dx + dy * dy < 16) return;          // 纯点击不创建
+  if (bodies.length >= MAX_BODIES) {
+    showFeed(`⚠ 天体已达上限 ${MAX_BODIES}，请先清理`);
+    return;
+  }
+  const world = screenToWorld(dragStartScreen.sx, dragStartScreen.sy);
+  const vx = dx / camera.zoom * 1.6;           // 屏幕像素 → 世界初速度
+  const vy = dy / camera.zoom * 1.6;
+  const b = makeBody(world.x, world.y, vx, vy, newBodyMass, newBodyType);
+  bodies.push(b);
+  // 新天体立即参与引力
+  computeAccelerations(bodies, G, SOFTENING);
+});
+
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (selected) {
+    removeBody(selected);
+    selected = null;
+    hideInfoPanel();
+  }
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    togglePause();
+  } else if (e.key === 'Delete') {
+    if (selected) { removeBody(selected); selected = null; hideInfoPanel(); }
+  }
+});
+
+function removeBody(b) {
+  const i = bodies.indexOf(b);
+  if (i >= 0) bodies.splice(i, 1);
+  if (followTarget === b) followTarget = null;
+}
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  followTarget = null;   // 手动缩放退出跟踪
+  const factor = Math.exp(-e.deltaY * 0.0012);
+  const newZoom = Math.min(8, Math.max(0.1, camera.zoom * factor));
+  // 以鼠标为中心缩放
+  const wx = screenToWorld(e.clientX, e.clientY).x;
+  const wy = screenToWorld(e.clientX, e.clientY).y;
+  camera.zoom = newZoom;
+  camera.cx = wx - (e.clientX - W / 2) / newZoom;
+  camera.cy = wy - (e.clientY - H / 2) / newZoom;
+}, { passive: false });
+
+// ============================================================
+// UI 层
+// ============================================================
+const el = (id) => document.getElementById(id);
+const gSlider = el('gSlider');
+const gInput = el('gInput');
+const timeSlider = el('timeSlider'), timeVal = el('timeVal');
+const massSlider = el('massSlider'), massVal = el('massVal');
+const trailCk = el('trailCk');
+const orbitCk = el('orbitCk');
+const presetSel = el('presetSel');
+const stCount = el('stCount'), stFps = el('stFps'), stTime = el('stTime'), stFeed = el('stFeed');
+const infoPanel = el('info'), infoTitle = el('infoTitle'), infoBody = el('infoBody');
+const feedDiv = el('feed');
+
+let G = 300;
+let timeScale = 1;
+let paused = false;
+let simTime = 0;
+let simAccum = 0;            // 模拟时间债（帧调度）
+const MAX_SUBSTEPS = 24;     // 每帧物理子步上限（性能保护）
+let feedCount = 0;
+let feedEvents = [];
+let fps = 0;
+
+gSlider.addEventListener('input', () => {
+  G = +gSlider.value;
+  gInput.value = G;
+});
+gInput.addEventListener('change', () => {
+  const v = parseGInput(gInput.value);
+  if (v !== null) {
+    G = v;
+    // 滑块 clamp 到自身范围同步（输入值可超出滑块范围）
+    gSlider.value = Math.min(30000, Math.max(10, v));
+  } else {
+    gInput.value = G;   // 非法/超范围输入回退当前值
+  }
+});
+timeSlider.addEventListener('input', () => {
+  timeScale = Math.pow(10, +timeSlider.value / 100); // 0.1x ~ 100x
+  timeVal.textContent = timeScale.toFixed(2).replace(/\.?0+$/, '') + '×';
+});
+massSlider.addEventListener('input', () => {
+  newBodyMass = +massSlider.value;
+  massVal.textContent = newBodyMass;
+});
+trailCk.addEventListener('change', () => { trailOn = trailCk.checked; });
+orbitCk.addEventListener('change', () => { orbitOn = orbitCk.checked; });
+
+// 界面主题切换（CSS 变量 + canvas 背景联动）
+el('themeSel').addEventListener('change', () => {
+  currentTheme = el('themeSel').value;
+  document.body.className = 'theme-' + currentTheme;
+});
+
+// 设置面板选项卡切换（基础/显示/场景）
+document.querySelectorAll('#controls .tab').forEach(t => {
+  t.addEventListener('click', () => {
+    const pane = document.getElementById('pane-' + t.dataset.tab);
+    if (!pane) return;   // 目标 pane 缺失时不动（防 UI 卡空白）
+    document.querySelectorAll('#controls .tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('#controls .tabpane').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    pane.classList.add('active');
+  });
+});
+
+el('loadBtn').addEventListener('click', () => {
+  loadPreset(presetSel.value);
+});
+el('pauseBtn').addEventListener('click', togglePause);
+el('resetBtn').addEventListener('click', () => loadPreset(presetSel.value));
+el('clearBtn').addEventListener('click', () => {
+  bodies = [];
+  selected = null;
+  followTarget = null;
+  hideInfoPanel();
+  feedEvents = [];
+  simTime = 0;
+  simAccum = 0;
+});
+el('infoClose').addEventListener('click', () => { selected = null; hideInfoPanel(); });
+
+// 攻略面板开关（✕ / 点击遮罩 / Escape 关闭）
+el('guideBtn').addEventListener('click', () => { el('guideOverlay').style.display = 'flex'; });
+el('guideClose').addEventListener('click', () => { el('guideOverlay').style.display = 'none'; });
+el('guideOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && el('guideOverlay').style.display === 'flex') {
+    el('guideOverlay').style.display = 'none';
+  }
+});
+
+function togglePause() {
+  paused = !paused;
+  el('pauseBtn').textContent = paused ? '▶ 继续' : '⏸ 暂停';
+}
+
+function loadPreset(name) {
+  bodies = createPreset(name).slice(0, MAX_BODIES);
+  selected = null;
+  followTarget = null;
+  hideInfoPanel();
+  feedEvents = [];
+  feedCount = 0;
+  simTime = 0;
+  simAccum = 0;
+  computeAccelerations(bodies, G, SOFTENING); // 预热加速度缓存
+  camera.cx = 0; camera.cy = 0; camera.zoom = 1;
+}
+
+// 碰撞合并 + 吞噬事件处理（帧末与大步长子步内共用）
+function handleCollisions(now) {
+  const res = collideBodies(bodies);
+  if (res.bodies !== bodies) {
+    bodies = res.bodies;
+    // 被吞噬的天体若正被选中/跟踪，清理状态
+    if (selected && selected.dead) { selected = null; hideInfoPanel(); }
+    if (followTarget && followTarget.dead) followTarget = null;
+  }
+  for (const ev of res.feedEvents) {
+    feedCount++;
+    feedEvents.push({ x: ev.x, y: ev.y, t: now });
+    showFeed(`🕳️ 黑洞吞噬天体 ×${feedCount}`);
+  }
+  if (feedEvents.length > 120) feedEvents.splice(0, feedEvents.length - 120);
+}
+
+function showFeed(msg) {
+  feedDiv.textContent = msg;
+  feedDiv.style.opacity = 1;
+  setTimeout(() => { feedDiv.style.opacity = 0; }, 900);
+}
+
+function hideInfoPanel() { infoPanel.style.display = 'none'; }
+
+function updateInfoPanel() {
+  if (!selected) return;
+  infoPanel.style.display = 'block';
+  const b = selected;
+  const typeName = { star: '恒星', planet: '行星', blackhole: '黑洞' }[b.type] || b.type;
+  infoTitle.textContent = `☄ 天体 · ${typeName}`;
+  const v = Math.hypot(b.vx, b.vy);
+  // 势能（相对所有其他体）
+  let pe = 0;
+  for (const o of bodies) {
+    if (o === b) continue;
+    const d = Math.hypot(o.x - b.x, o.y - b.y);
+    if (d > 1) pe -= G * b.mass * o.mass / d;
+  }
+  const ke = 0.5 * b.mass * v * v;
+  infoBody.innerHTML =
+    `质量: ${b.mass.toFixed(1)}<br>` +
+    `速度: ${v.toFixed(2)} px/s<br>` +
+    `动能: ${ke.toExponential(1)}<br>` +
+    `势能: ${pe.toExponential(1)}<br>` +
+    `总能量: ${(ke + pe).toExponential(1)}<br>` +
+    `半径: ${b.radius.toFixed(1)} px`;
+}
+
+// ============================================================
+// 主循环
+// ============================================================
+let lastFrame = performance.now();
+let perfAdapt = 1; // 性能自适应：子步缩减系数
+
+function frame(now) {
+  const dtFrame = Math.max(0, Math.min(0.05, (now - lastFrame) / 1000));
+  lastFrame = now;
+  fps = fps * 0.9 + (dtFrame > 0 ? (1 / dtFrame) : 0) * 0.1;
+
+  if (!paused) {
+    // 时间债调度：慢速精确（0 子步帧合法）、高速动态加粗步长
+    const sched = scheduleSubsteps(simAccum, dtFrame, timeScale, MAX_SUBSTEPS);
+    simAccum = sched.accum;
+    const subDt = sched.subDt;
+    const substeps = Math.ceil(sched.substeps * perfAdapt);
+    for (let s = 0; s < substeps; s++) {
+      stepUniverse(bodies, subDt, G, SOFTENING);
+      simTime += subDt;
+      // 拖拽阻尼（吸积盘粒子内落）——按物理时间折算（步长加粗时同步增强）
+      for (const b of bodies) {
+        if (b.drag) {
+          const f = 1 - b.drag * subDt * 240;
+          b.vx *= f; b.vy *= f;
+        }
+      }
+      // 大步长时子步内检测碰撞，缓解高倍速隧穿（小步长由帧末检测兜底）
+      if (s % 4 === 3 && subDt > PHYS_DT * 4) handleCollisions(now);
+    }
+    // 帧末碰撞检测
+    handleCollisions(now);
+    // 尾迹记录（每帧一次）
+    if (trailOn) {
+      for (const b of bodies) {
+        b.trail.push({ x: b.x, y: b.y });
+        if (b.trail.length > TRAIL_LEN) b.trail.shift();
+      }
+    } else {
+      for (const b of bodies) if (b.trail.length) b.trail = [];
+    }
+  }
+
+  // 跟踪选中天体：指数平滑居中（平移/缩放/点击空白会清除 followTarget）
+  // 帧率无关：alpha = 1−e^(−dt·k)，k=6 → 时间常数 ≈0.17s
+  if (followTarget) {
+    if (followTarget.dead) followTarget = null;
+    else {
+      const alpha = 1 - Math.exp(-dtFrame * 6);
+      camera.cx += (followTarget.x - camera.cx) * alpha;
+      camera.cy += (followTarget.y - camera.cy) * alpha;
+    }
+  }
+
+  // 渲染
+  drawBackground(now / 1000);
+  drawTrails();
+  drawKeplerOrbits();
+  drawPrediction(now);
+  for (const b of bodies) drawBody(b, now / 1000);
+  drawFeedEvents(now);
+  drawCreationArrow();
+
+  // 统计
+  stCount.textContent = bodies.length;
+  stFps.textContent = Math.round(fps);
+  stTime.textContent = simTime.toFixed(1) + 's';
+  stFeed.textContent = feedCount;
+  if (selected) updateInfoPanel(); // 信息随天体运动刷新
+
+  // 性能自适应：帧超 28ms 且子步可减 → 减半
+  if (dtFrame > 0.028 && perfAdapt > 0.0625) {
+    perfAdapt *= 0.5;
+  } else if (dtFrame < 0.012 && perfAdapt < 1) {
+    perfAdapt = Math.min(1, perfAdapt * 1.5);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+// 启动
+resize();
+loadPreset('solar');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
