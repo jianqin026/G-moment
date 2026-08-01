@@ -7,7 +7,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; }
-  #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
   body {
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
     background: var(--bg); color: var(--text);
@@ -93,15 +93,17 @@
   .tabpane { display: none; }
   .tabpane.active { display: block; }
 
-  /* 右上：统计 */
-  #stats { right: 14px; top: 14px; font-size: 12px; min-width: 150px; text-align: right; line-height: 1.8; color: var(--sub); }
+  /* 右上：统计（移动端不拦截触摸；桌面也允许穿透） */
+  #stats { right: 14px; top: 14px; font-size: 12px; min-width: 150px; text-align: right; line-height: 1.8; color: var(--sub); pointer-events: none; }
   #stats b { color: var(--accent); font-variant-numeric: tabular-nums; }
 
   /* 选中天体信息 */
   #info {
     right: 14px; top: 130px; font-size: 12px; min-width: 170px; line-height: 1.8;
     display: none;
+    pointer-events: none;
   }
+  #info .close, #info #delBtn { pointer-events: auto; }
   #info .title { color: var(--text); margin-bottom: 4px; }
   #info .close { float: right; cursor: pointer; color: var(--sub); font-size: 13px; }
   #info .close:hover { color: var(--warn); }
@@ -141,6 +143,30 @@
   .guide-body td { color: var(--sub); }
   input:focus-visible, select:focus-visible, button:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+
+  /* 设置面板折叠按钮（仅移动端显示） */
+  #panelToggle { display: none; }
+
+  /* ===== 移动端适配（≤768px）===== */
+  @media (max-width: 768px) {
+    #controls {
+      left: 0; right: 0; bottom: 0; width: auto;
+      max-height: 44vh; overflow-y: auto;
+      border-radius: 14px 14px 0 0;
+      border-left: none; border-right: none; border-bottom: none;
+    }
+    #controls.hidden { display: none; }
+    #panelToggle {
+      display: block; position: fixed; left: 10px; bottom: 10px; z-index: 25;
+      background: var(--panel); color: var(--text);
+      border: 1px solid var(--border); border-radius: 18px;
+      padding: 8px 14px; font-size: 13px; cursor: pointer;
+    }
+    #stats { top: 8px; right: 8px; font-size: 11px; min-width: 0; }
+    #info { right: 8px; top: 92px; font-size: 11px; min-width: 0; }
+    #hint { display: none; }        /* 移动端省空间 */
+    #guideBtn { right: 8px; bottom: 8px; }
   }
 </style>
 </head>
@@ -213,11 +239,13 @@
   <span class="close" id="infoClose">✕</span>
   <div class="title" id="infoTitle">选中天体</div>
   <div id="infoBody"></div>
+  <button id="delBtn" style="margin-top:8px;width:100%">🗑 删除</button>
 </div>
 
 <div id="feed"></div>
 
 <button id="guideBtn" title="打开攻略">📖 攻略</button>
+<button id="panelToggle" title="设置">⚙ 设置</button>
 <div id="guideOverlay" class="overlay" style="display:none">
   <div class="guide">
     <div class="guide-title">🪐 宇宙模拟器攻略 <span class="gclose" id="guideClose">✕</span></div>
@@ -1016,22 +1044,27 @@ canvas.addEventListener('mousemove', (e) => {
 window.addEventListener('mouseup', (e) => {
   if (panning) { panning = false; return; }
   if (!creating) return;
+  finishCreation(e.clientX, e.clientY);
+});
+
+// 创建天体共用逻辑（mouseup 与 touchend 共用）
+function finishCreation(clientX, clientY) {
   creating = false;
-  const dx = e.clientX - dragStartScreen.sx;   // 屏幕像素拖拽量
-  const dy = e.clientY - dragStartScreen.sy;
-  if (dx * dx + dy * dy < 16) return;          // 纯点击不创建
+  const dx = clientX - dragStartScreen.sx;   // 屏幕像素拖拽量
+  const dy = clientY - dragStartScreen.sy;
+  if (dx * dx + dy * dy < 16) return;        // 纯点击不创建
   if (bodies.length >= MAX_BODIES) {
     showFeed(`⚠ 天体已达上限 ${MAX_BODIES}，请先清理`);
     return;
   }
   const world = screenToWorld(dragStartScreen.sx, dragStartScreen.sy);
-  const vx = dx / camera.zoom * 1.6;           // 屏幕像素 → 世界初速度
+  const vx = dx / camera.zoom * 1.6;         // 屏幕像素 → 世界初速度
   const vy = dy / camera.zoom * 1.6;
   const b = makeBody(world.x, world.y, vx, vy, newBodyMass, newBodyType);
   bodies.push(b);
   // 新天体立即参与引力
   computeAccelerations(bodies, G, SOFTENING);
-});
+}
 
 canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
@@ -1068,6 +1101,125 @@ canvas.addEventListener('wheel', (e) => {
   camera.zoom = newZoom;
   camera.cx = wx - (e.clientX - W / 2) / newZoom;
   camera.cy = wy - (e.clientY - H / 2) / newZoom;
+}, { passive: false });
+
+// ============================================================
+// 移动端触摸手势（单指点击/拖拽创建、双指捏合缩放+平移）
+// ============================================================
+let touchState = null;
+// { mode:'tap'|'create'|'pinch', id, startX, startY, moved, lastX, lastY,
+//   d0, zoom0, cx0, cy0, mx0, my0 }
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  if (e.touches.length === 2) {
+    // 双指：捏合缩放 + 平移（接管单指候选时需清理创建状态）
+    creating = false;
+    const t1 = e.touches[0], t2 = e.touches[1];
+    touchState = {
+      mode: 'pinch',
+      d0: Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY),
+      zoom0: camera.zoom,
+      mx0: (t1.clientX + t2.clientX) / 2,
+      my0: (t1.clientY + t2.clientY) / 2
+    };
+    followTarget = null;
+  } else if (e.touches.length === 1 && !touchState) {
+    const t = e.touches[0];
+    const hit = hitTest(t.clientX, t.clientY);
+    if (hit) {
+      // 点中天体：选中 + 跟踪
+      selected = hit;
+      followTarget = hit;
+      updateInfoPanel();
+      touchState = { mode: 'tap', id: t.identifier, startX: t.clientX, startY: t.clientY, moved: false, lastX: t.clientX, lastY: t.clientY };
+    } else {
+      // 空白：候选创建（位移 ≥12px 才生效，防误触）
+      creating = true;
+      dragStartScreen = { sx: t.clientX, sy: t.clientY };
+      dragStartWorld = screenToWorld(t.clientX, t.clientY);
+      selected = null;
+      hideInfoPanel();
+      touchState = { mode: 'create', id: t.identifier, startX: t.clientX, startY: t.clientY, moved: false, lastX: t.clientX, lastY: t.clientY };
+    }
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (!touchState) return;
+  if (touchState.mode === 'pinch' && e.touches.length >= 2) {
+    const t1 = e.touches[0], t2 = e.touches[1];
+    const d = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    const mx = (t1.clientX + t2.clientX) / 2;
+    const my = (t1.clientY + t2.clientY) / 2;
+    if (touchState.d0 < 1) { touchState.d0 = d; return; }
+    // 增量变换：以上帧两指中点为锚点缩放 + 中点位移平移
+    const newZoom = Math.min(8, Math.max(0.1, touchState.zoom0 * d / touchState.d0));
+    const wx = (touchState.mx0 - W / 2) / touchState.zoom0 + camera.cx;
+    const wy = (touchState.my0 - H / 2) / touchState.zoom0 + camera.cy;
+    camera.zoom = newZoom;
+    camera.cx = wx - (mx - W / 2) / newZoom;
+    camera.cy = wy - (my - H / 2) / newZoom;
+    touchState.d0 = d; touchState.zoom0 = newZoom;
+    touchState.mx0 = mx; touchState.my0 = my;
+  } else if (touchState.mode === 'create' || touchState.mode === 'tap') {
+    const t = Array.from(e.touches).find(x => x.identifier === touchState.id) || e.touches[0];
+    touchState.lastX = t.clientX;
+    touchState.lastY = t.clientY;
+    const dx = t.clientX - touchState.startX;
+    const dy = t.clientY - touchState.startY;
+    if (dx * dx + dy * dy >= 144) touchState.moved = true;   // 12px 阈值
+  }
+}, { passive: false });
+
+// 触摸状态收尾（touchend 各分支与 touchcancel 复用，防状态泄漏）
+function touchCleanup() {
+  touchState = null;
+  creating = false;
+  panning = false;
+}
+
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  if (!touchState) return;
+  if (touchState.mode === 'create' && e.touches.length === 0) {
+    if (touchState.moved) {
+      finishCreation(touchState.lastX, touchState.lastY);
+    } else {
+      creating = false;   // 未移动：取消创建（防误触）
+    }
+    touchCleanup();
+  } else if (touchState.mode === 'tap' && e.touches.length === 0) {
+    touchCleanup();       // tap 已在 touchstart 完成选中
+  } else if (touchState.mode === 'pinch' && e.touches.length < 2) {
+    // 双指抬起一指：若剩余一指则转为平移
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      touchState = { mode: 'pan1', id: t.identifier, startX: t.clientX, startY: t.clientY, moved: false, lastX: t.clientX, lastY: t.clientY };
+    } else {
+      touchCleanup();
+    }
+  } else if (touchState.mode === 'pan1' && e.touches.length === 0) {
+    touchCleanup();
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchcancel', () => {
+  touchCleanup();   // 系统中断（来电/下拉等）安全收尾
+});
+
+// 单指平移（双指抬起一指后的剩余手指）
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (!touchState || touchState.mode !== 'pan1') return;
+  const t = Array.from(e.touches).find(x => x.identifier === touchState.id) || e.touches[0];
+  const dx = t.clientX - touchState.lastX;
+  const dy = t.clientY - touchState.lastY;
+  camera.cx -= dx / camera.zoom;
+  camera.cy -= dy / camera.zoom;
+  touchState.lastX = t.clientX;
+  touchState.lastY = t.clientY;
 }, { passive: false });
 
 // ============================================================
@@ -1153,6 +1305,16 @@ el('clearBtn').addEventListener('click', () => {
   simAccum = 0;
 });
 el('infoClose').addEventListener('click', () => { selected = null; hideInfoPanel(); });
+
+// 删除按钮（移动端/桌面通用）+ 设置面板折叠（移动端）
+el('delBtn').addEventListener('click', () => {
+  if (selected) { removeBody(selected); selected = null; hideInfoPanel(); }
+});
+el('panelToggle').addEventListener('click', () => {
+  const c = el('controls');
+  c.classList.toggle('hidden');
+  el('panelToggle').textContent = c.classList.contains('hidden') ? '⚙ 设置' : '✕ 收起';
+});
 
 // 攻略面板开关（✕ / 点击遮罩 / Escape 关闭）
 el('guideBtn').addEventListener('click', () => { el('guideOverlay').style.display = 'flex'; });
