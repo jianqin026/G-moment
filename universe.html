@@ -48,6 +48,7 @@
   /* 左下：控制面板 */
   #controls { left: 14px; bottom: 14px; width: 252px; font-size: 13px; max-height: calc(100vh - 28px); overflow-y: auto; }
   #controls h1 { font-size: 15px; margin-bottom: 8px; letter-spacing: 1px; color: var(--text); }
+  .cclose { display: none; }   /* 移动端覆盖式设置的关闭按钮（桌面隐藏） */
   #controls h1 .icon { margin-right: 4px; }
   .row { display: flex; align-items: center; gap: 8px; margin: 7px 0; }
   .row label { flex: 0 0 74px; color: var(--sub); font-size: 12px; }
@@ -147,16 +148,53 @@
 
   /* 设置面板折叠按钮（仅移动端显示） */
   #panelToggle { display: none; }
+  .ctrlShade { display: none; }   /* 移动端设置遮罩（桌面隐藏） */
+  .panesel { display: none; }     /* 移动端面板切换下拉（桌面隐藏，桌面用选项卡） */
 
   /* ===== 移动端适配（≤768px）===== */
   @media (max-width: 768px) {
-    #controls {
-      left: 0; right: 0; bottom: 0; width: auto;
-      max-height: 44vh; overflow-y: auto;
-      border-radius: 14px 14px 0 0;
-      border-left: none; border-right: none; border-bottom: none;
+    /* 遮罩：点它关闭设置（半透明，露出星空） */
+    .ctrlShade {
+      display: block;
+      position: fixed; inset: 0;
+      background: rgba(3, 5, 12, 0.45);
+      z-index: 55;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.18s;
     }
-    #controls.hidden { display: none; }
+    .ctrlShade.show { opacity: 1; visibility: visible; }
+    /* 设置面板：半屏覆盖式（高度 46~60vh，内容均匀分布，不再贴底迷你或全屏太空） */
+    #controls {
+      top: auto; left: 0; right: 0; bottom: 0; width: auto;
+      min-height: 46vh; max-height: 60vh; margin: 0;
+      border-radius: 20px 20px 0 0; border: none;
+      background: rgba(8, 10, 22, 0.96);
+      z-index: 60;
+      padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      visibility: hidden; opacity: 0; transform: translateY(100%);
+      transition: opacity 0.18s, transform 0.18s;
+      pointer-events: none;
+    }
+    #controls.open {
+      visibility: visible; opacity: 1; transform: none; pointer-events: auto;
+    }
+    #controls h1 {
+      position: relative;
+      margin-bottom: 14px;
+      padding-right: 26px;   /* 给 ✕ 留位，避免文字相挤 */
+    }
+    .cclose {
+      position: absolute; top: 0; right: 0; float: none;
+      cursor: pointer;
+      color: var(--sub); font-size: 16px; line-height: 1.2;
+    }
+    .cclose:hover { color: var(--warn); }
+    /* 内容区：行距拉开、可滚动；按钮行固定底部 */
+    #controls .tabpane.active { flex: 1; overflow-y: auto; min-height: 0; }
+    #controls .row { margin: 12px 0; }
+    .btnrow { flex-shrink: 0; margin-top: 14px; }
     #panelToggle {
       display: block; position: fixed; left: 10px; bottom: 10px; z-index: 25;
       background: var(--panel); color: var(--text);
@@ -164,8 +202,12 @@
       padding: 8px 14px; font-size: 13px; cursor: pointer;
     }
     #stats { top: 8px; right: 8px; font-size: 11px; min-width: 0; }
-    #info { right: 8px; top: 92px; font-size: 11px; min-width: 0; }
+    #info { right: 8px; top: 40px; font-size: 11px; min-width: 0; }
     #hint { display: none; }        /* 移动端省空间 */
+    /* 移动端精简 UI：隐藏选项卡横条（改用下拉选择器切换面板），隐藏次要统计行 */
+    .tabs { display: none; }
+    .panesel { display: block; width: 100%; margin-bottom: 14px; }
+    #stats .minor { display: none; }
     #guideBtn { right: 8px; bottom: 8px; }
   }
 </style>
@@ -173,8 +215,15 @@
 <body class="theme-astronaut">
 <canvas id="canvas"></canvas>
 
+<div id="ctrlShade" class="ctrlShade"></div>
+
 <div class="panel" id="controls">
-  <h1><span class="icon">🪐</span>宇宙模拟器</h1>
+  <h1><span class="icon">🪐</span>宇宙模拟器 <span class="cclose" id="ctrlClose" title="关闭">✕</span></h1>
+  <select id="paneSel" class="panesel" title="切换面板">
+    <option value="base">⚙ 基础设置</option>
+    <option value="view">👁 显示</option>
+    <option value="scene">🌌 预设场景</option>
+  </select>
   <div class="tabs">
     <button class="tab active" data-tab="base"> 基础</button>
     <button class="tab" data-tab="view"> 显示</button>
@@ -189,6 +238,13 @@
         <label><input type="radio" name="btype" value="planet" checked><span>🪐行星</span></label>
         <label><input type="radio" name="btype" value="star"><span>⭐恒星</span></label>
         <label><input type="radio" name="btype" value="blackhole"><span>🕳️黑洞</span></label>
+      </div>
+    </div>
+    <div class="row"><label>点击方式</label>
+      <div class="typebtns">
+        <label><input type="radio" name="clickmode" value="place" checked><span>🖱放置天体</span></label>
+        <label><input type="radio" name="clickmode" value="select"><span>👆选中天体</span></label>
+        <label><input type="radio" name="clickmode" value="pan"><span>✋平移画面</span></label>
       </div>
     </div>
   </div>
@@ -223,7 +279,7 @@
     <button id="clearBtn">清空</button>
   </div>
   <div id="hint">
-    🖱 左键拖拽 = 生成天体并设定初速度<br>
+    🖱 左键拖拽 = 生成天体并设定初速度（「基础」可切换为只选中）<br>
     🖱 点击天体 = 选中 · 右键/Delete = 删除<br>
     ⌨ Alt+左键 或 中键拖拽 = 平移 · 滚轮 = 缩放<br>
     ␣ 空格 = 暂停/继续
@@ -232,7 +288,7 @@
 
 <div class="panel" id="stats">
   天体: <b id="stCount">0</b> &nbsp;FPS: <b id="stFps">0</b><br>
-  模拟时间: <b id="stTime">0.0s</b> &nbsp;吞噬: <b id="stFeed">0</b>
+  <span class="minor">模拟时间: <b id="stTime">0.0s</b> &nbsp;吞噬: <b id="stFeed">0</b></span>
 </div>
 
 <div class="panel" id="info">
@@ -253,7 +309,7 @@
       <h3>🎮 操作速查</h3>
       <table>
         <tr><th>操作</th><th>效果</th></tr>
-        <tr><td>左键拖拽空白</td><td>生成天体 + 设定初速度（箭头预览）</td></tr>
+        <tr><td>左键拖拽空白</td><td>生成天体 + 设定初速度（箭头预览）；在「基础」可切换为只选中</td></tr>
         <tr><td>点击天体</td><td>选中 + 相机居中跟踪（看质量/速度/能量）</td></tr>
         <tr><td>右键 / Delete</td><td>删除选中天体</td></tr>
         <tr><td>滚轮</td><td>缩放（0.1×~8×）</td></tr>
@@ -268,6 +324,7 @@
         <tr><td>时间倍速</td><td>0.01×~100× 全范围真实生效，看演化 / 看细节</td></tr>
         <tr><td>天体质量</td><td>新天体的质量，决定半径与引力影响力</td></tr>
         <tr><td>新天体类型</td><td>🪐行星 / ⭐恒星 / 🕳️黑洞，切换时质量自动匹配</td></tr>
+        <tr><td>点击方式</td><td>🖱放置天体：拖拽空白生成 + 设初速度；👆选中天体：只点选不生成；✋平移画面：单指/左键拖拽平移（点击空白取消选中）</td></tr>
         <tr><td>尾迹 / 预测轨道</td><td>轨道拖尾；大天体淡椭圆 + 选中体亮虚线预测</td></tr>
       </table>
       <h3>🔬 物理机制</h3>
@@ -302,7 +359,7 @@
 const PHYS_DT = 1 / 240;        // 固定物理步长（秒）
 const SOFTENING = 2;            // 软化常数 ε（像素），防 r→0 奇点
 const TRAIL_LEN = 50;           // 尾迹长度（帧）
-const MAX_BODIES = 1200;        // 天体数量上限
+let MAX_BODIES = 1200;          // 天体数量上限（移动端降低）
 const MAX_SUB_DT_MULT = 16;     // 物理步长上限（PHYS_DT 的倍数，leapfrog 稳定域）
 
 // 天体类型 -> 颜色色相（渲染用）
@@ -676,6 +733,12 @@ if (typeof globalThis !== 'undefined') {
 // ============================================================
 
 // ============================================================
+// 设备检测：触屏/窄屏 → 移动端模式（精简 UI + 降性能）
+// ============================================================
+const IS_MOBILE = typeof window !== 'undefined' &&
+  ((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth <= 768);
+
+// ============================================================
 // 渲染层
 // ============================================================
 const canvas = document.getElementById('canvas');
@@ -711,7 +774,7 @@ function screenToWorld(sx, sy) {
 let stars = [];
 function buildStars() {
   stars = [];
-  for (let i = 0; i < 420; i++) {
+  for (let i = 0; i < (IS_MOBILE ? 120 : 420); i++) {
     stars.push({
       x: Math.random(), y: Math.random(),
       r: 0.4 + Math.random() * 1.1,
@@ -729,19 +792,30 @@ const THEME_SKY = {
 };
 let currentTheme = 'astronaut';
 
+// 天空色平滑过渡：切主题时 lerp，避免生硬跳变
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+let skyNow = THEME_SKY.astronaut.map(hexToRgb);
+let skyTo = THEME_SKY.astronaut.map(hexToRgb);
+
 function drawBackground(t) {
-  // 深空渐变（随主题切换）
-  const sky = THEME_SKY[currentTheme];
+  // 深空渐变（天空色朝目标主题平滑过渡）
+  for (let i = 0; i < 3; i++) {
+    skyNow[i][0] += (skyTo[i][0] - skyNow[i][0]) * 0.06;
+    skyNow[i][1] += (skyTo[i][1] - skyNow[i][1]) * 0.06;
+    skyNow[i][2] += (skyTo[i][2] - skyNow[i][2]) * 0.06;
+  }
   const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.75);
-  g.addColorStop(0, sky[0]);
-  g.addColorStop(0.55, sky[1]);
-  g.addColorStop(1, sky[2]);
+  g.addColorStop(0, `rgb(${skyNow[0].map(Math.round).join(',')})`);
+  g.addColorStop(0.55, `rgb(${skyNow[1].map(Math.round).join(',')})`);
+  g.addColorStop(1, `rgb(${skyNow[2].map(Math.round).join(',')})`);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
-  // 星点（视差 0.12，缩放 0.5，闪烁）
+  // 星点（视差 0.12，闪烁；暖色星 + 亮星星芒分层）
   const px = camera.cx * camera.zoom * 0.12;
   const py = camera.cy * camera.zoom * 0.12;
-  const sz = Math.max(W, H) * 0.5 * 0.5;
   for (const s of stars) {
     let sx = (s.x * W - px) % W; if (sx < 0) sx += W;
     let sy = (s.y * H - py) % H; if (sy < 0) sy += H;
@@ -785,9 +859,9 @@ function drawBody(b, t) {
     ctx.strokeStyle = 'rgba(150,120,255,0.8)';
     ctx.lineWidth = 1;
     ctx.stroke();
-  } else {
-    // 发光（仅较大天体）
-    if (r > 6) {
+  } else if (b.type === 'star') {
+    // 恒星：发光 + 纯色圆（移动端纯色渲染，跳过发光）
+    if (!IS_MOBILE && r > 6) {
       const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.8);
       glow.addColorStop(0, 'rgba(255,255,255,0.35)');
       glow.addColorStop(0.4, hexToRgba(bodyColor(b), 0.25));
@@ -801,7 +875,54 @@ function drawBody(b, t) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, Math.max(0.4, r), 0, Math.PI * 2);
     ctx.fill();
+  } else {
+    // 行星：左上受光渐变球体（体积感）；小星退化为纯色圆
+    const col = bodyColor(b);
+    let bodyFill = col;
+    if (!IS_MOBILE && r > 3) {
+      const pg = ctx.createRadialGradient(p.x - r * 0.35, p.y - r * 0.35, r * 0.1, p.x, p.y, r * 1.02);
+      pg.addColorStop(0, 'rgba(255,255,255,0.5)');
+      pg.addColorStop(0.45, hexToRgba(col, 1));
+      pg.addColorStop(1, 'rgba(0,0,0,0.6)');
+      bodyFill = pg;
+    }
+    if (!IS_MOBILE && r > 6) {
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.8);
+      glow.addColorStop(0, 'rgba(255,255,255,0.35)');
+      glow.addColorStop(0.4, hexToRgba(col, 0.25));
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 2.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = bodyFill;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.4, r), 0, Math.PI * 2);
+    ctx.fill();
   }
+}
+
+// 选中天体：旋转扫描环 + 四角定位点（天文望远镜取景器感）
+function drawSelectionRing(now) {
+  if (!selected) return;
+  const p = worldToScreen(selected.x, selected.y);
+  const rr = Math.max(12, selected.radius * camera.zoom) + 9;
+  ctx.save();
+  ctx.setLineDash([7, 5]);
+  ctx.lineDashOffset = -now * 0.045;
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = 'rgba(125,200,255,0.85)';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(125,200,255,0.9)';
+  const arm = rr + 3;
+  for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    ctx.fillRect(p.x + dx * arm - 1, p.y + dy * arm - 1, 2, 2);
+  }
+  ctx.restore();
 }
 
 function hexToRgba(hslColor, a) {
@@ -981,6 +1102,13 @@ let trailOn = true;
 let orbitOn = true;
 let newBodyMass = 100;
 let newBodyType = 'planet';
+let clickMode = 'place';        // 点击方式: 'place' 拖拽放置 | 'select' 只选中
+
+// 读取当前点击方式：每次交互实时查询选中的 radio（不依赖 change 事件绑定时序，更可靠）
+function currentClickMode() {
+  const ck = document.querySelector('input[name="clickmode"]:checked');
+  return ck ? ck.value : 'place';
+}
 document.querySelectorAll('input[name="btype"]').forEach(r => {
   r.addEventListener('change', () => {
     newBodyType = r.value;
@@ -989,6 +1117,17 @@ document.querySelectorAll('input[name="btype"]').forEach(r => {
     newBodyMass = def;
     massSlider.value = def;
     massVal.textContent = def;
+  });
+});
+
+// 点击方式切换：'place' 拖拽放置 | 'select' 只选中（切换时清理残留状态）
+document.querySelectorAll('input[name="clickmode"]').forEach(r => {
+  r.addEventListener('change', () => {
+    clickMode = r.value;
+    creating = false;
+    selected = null;
+    followTarget = null;
+    hideInfoPanel();
   });
 });
 
@@ -1015,17 +1154,30 @@ canvas.addEventListener('mousedown', (e) => {
     return;
   }
   if (e.button !== 0) return;
+  // 平移模式：左键拖拽 = 平移画面（点击天体也平移，不选中）
+  if (currentClickMode() === 'pan') {
+    panning = true;
+    followTarget = null;
+    lastPan = { sx: e.clientX, sy: e.clientY };
+    e.preventDefault();
+    return;
+  }
   const hit = hitTest(e.clientX, e.clientY);
   if (hit) {
     selected = hit;
-    followTarget = hit;      // 点击天体：居中跟踪
+    followTarget = hit;      // 点击天体：居中跟踪（两种模式通用）
     updateInfoPanel();
-  } else {
+  } else if (currentClickMode() === 'place') {
     creating = true;
     followTarget = null;     // 点击空白退出跟踪
     dragStartScreen = { sx: e.clientX, sy: e.clientY };
     dragStartWorld = screenToWorld(e.clientX, e.clientY);
     selected = null;
+    hideInfoPanel();
+  } else {
+    // 选择模式：点击空白只取消选中，不创建
+    selected = null;
+    followTarget = null;
     hideInfoPanel();
   }
 });
@@ -1092,15 +1244,21 @@ function removeBody(b) {
 
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  followTarget = null;   // 手动缩放退出跟踪
   const factor = Math.exp(-e.deltaY * 0.0012);
   const newZoom = Math.min(8, Math.max(0.1, camera.zoom * factor));
-  // 以鼠标为中心缩放
-  const wx = screenToWorld(e.clientX, e.clientY).x;
-  const wy = screenToWorld(e.clientX, e.clientY).y;
-  camera.zoom = newZoom;
-  camera.cx = wx - (e.clientX - W / 2) / newZoom;
-  camera.cy = wy - (e.clientY - H / 2) / newZoom;
+  if (followTarget) {
+    // 跟踪中：以选中天体为中心缩放，天体保持画面居中（不退出跟踪）
+    camera.zoom = newZoom;
+    camera.cx = followTarget.x;
+    camera.cy = followTarget.y;
+  } else {
+    // 未跟踪：以鼠标位置为中心缩放
+    const wx = screenToWorld(e.clientX, e.clientY).x;
+    const wy = screenToWorld(e.clientX, e.clientY).y;
+    camera.zoom = newZoom;
+    camera.cx = wx - (e.clientX - W / 2) / newZoom;
+    camera.cy = wy - (e.clientY - H / 2) / newZoom;
+  }
 }, { passive: false });
 
 // ============================================================
@@ -1123,9 +1281,13 @@ canvas.addEventListener('touchstart', (e) => {
       mx0: (t1.clientX + t2.clientX) / 2,
       my0: (t1.clientY + t2.clientY) / 2
     };
-    followTarget = null;
   } else if (e.touches.length === 1 && !touchState) {
     const t = e.touches[0];
+    if (currentClickMode() === 'pan') {
+      // 平移模式：单指拖拽 = 平移画面
+      touchState = { mode: 'pan', id: t.identifier, startX: t.clientX, startY: t.clientY, moved: false, lastX: t.clientX, lastY: t.clientY };
+      return;
+    }
     const hit = hitTest(t.clientX, t.clientY);
     if (hit) {
       // 点中天体：选中 + 跟踪
@@ -1133,7 +1295,7 @@ canvas.addEventListener('touchstart', (e) => {
       followTarget = hit;
       updateInfoPanel();
       touchState = { mode: 'tap', id: t.identifier, startX: t.clientX, startY: t.clientY, moved: false, lastX: t.clientX, lastY: t.clientY };
-    } else {
+    } else if (currentClickMode() === 'place') {
       // 空白：候选创建（位移 ≥12px 才生效，防误触）
       creating = true;
       dragStartScreen = { sx: t.clientX, sy: t.clientY };
@@ -1141,6 +1303,12 @@ canvas.addEventListener('touchstart', (e) => {
       selected = null;
       hideInfoPanel();
       touchState = { mode: 'create', id: t.identifier, startX: t.clientX, startY: t.clientY, moved: false, lastX: t.clientX, lastY: t.clientY };
+    } else {
+      // 选择模式：单指拖拽空白 = 平移画面；单击空白 = 取消选中
+      selected = null;
+      followTarget = null;
+      hideInfoPanel();
+      touchState = { mode: 'pan', id: t.identifier, startX: t.clientX, startY: t.clientY, moved: false, lastX: t.clientX, lastY: t.clientY };
     }
   }
 }, { passive: false });
@@ -1156,11 +1324,19 @@ canvas.addEventListener('touchmove', (e) => {
     if (touchState.d0 < 1) { touchState.d0 = d; return; }
     // 增量变换：以上帧两指中点为锚点缩放 + 中点位移平移
     const newZoom = Math.min(8, Math.max(0.1, touchState.zoom0 * d / touchState.d0));
-    const wx = (touchState.mx0 - W / 2) / touchState.zoom0 + camera.cx;
-    const wy = (touchState.my0 - H / 2) / touchState.zoom0 + camera.cy;
-    camera.zoom = newZoom;
-    camera.cx = wx - (mx - W / 2) / newZoom;
-    camera.cy = wy - (my - H / 2) / newZoom;
+    if (followTarget) {
+      // 跟踪中：以选中天体为中心缩放，保持居中（与滚轮行为一致）
+      camera.zoom = newZoom;
+      camera.cx = followTarget.x;
+      camera.cy = followTarget.y;
+    } else {
+      // 未跟踪：以上帧两指中点为锚点缩放 + 中点位移平移
+      const wx = (touchState.mx0 - W / 2) / touchState.zoom0 + camera.cx;
+      const wy = (touchState.my0 - H / 2) / touchState.zoom0 + camera.cy;
+      camera.zoom = newZoom;
+      camera.cx = wx - (mx - W / 2) / newZoom;
+      camera.cy = wy - (my - H / 2) / newZoom;
+    }
     touchState.d0 = d; touchState.zoom0 = newZoom;
     touchState.mx0 = mx; touchState.my0 = my;
   } else if (touchState.mode === 'create' || touchState.mode === 'tap') {
@@ -1170,6 +1346,18 @@ canvas.addEventListener('touchmove', (e) => {
     const dx = t.clientX - touchState.startX;
     const dy = t.clientY - touchState.startY;
     if (dx * dx + dy * dy >= 144) touchState.moved = true;   // 12px 阈值
+  } else if (touchState.mode === 'pan') {
+    // 选择模式下的单指平移：位移超阈值后增量平移画面
+    const t = Array.from(e.touches).find(x => x.identifier === touchState.id) || e.touches[0];
+    const dx = t.clientX - touchState.startX;
+    const dy = t.clientY - touchState.startY;
+    if (dx * dx + dy * dy >= 144) touchState.moved = true;   // 12px 阈值
+    if (touchState.moved) {
+      camera.cx -= (t.clientX - touchState.lastX) / camera.zoom;
+      camera.cy -= (t.clientY - touchState.lastY) / camera.zoom;
+    }
+    touchState.lastX = t.clientX;
+    touchState.lastY = t.clientY;
   }
 }, { passive: false });
 
@@ -1200,7 +1388,7 @@ canvas.addEventListener('touchend', (e) => {
     } else {
       touchCleanup();
     }
-  } else if (touchState.mode === 'pan1' && e.touches.length === 0) {
+  } else if ((touchState.mode === 'pan' || touchState.mode === 'pan1') && e.touches.length === 0) {
     touchCleanup();
   }
 }, { passive: false });
@@ -1242,7 +1430,7 @@ let timeScale = 1;
 let paused = false;
 let simTime = 0;
 let simAccum = 0;            // 模拟时间债（帧调度）
-const MAX_SUBSTEPS = 24;     // 每帧物理子步上限（性能保护）
+let MAX_SUBSTEPS = 24;       // 每帧物理子步上限（性能保护，移动端降低）
 let feedCount = 0;
 let feedEvents = [];
 let fps = 0;
@@ -1276,6 +1464,7 @@ orbitCk.addEventListener('change', () => { orbitOn = orbitCk.checked; });
 el('themeSel').addEventListener('change', () => {
   currentTheme = el('themeSel').value;
   document.body.className = 'theme-' + currentTheme;
+  skyTo = THEME_SKY[currentTheme].map(hexToRgb);   // canvas 天空色平滑过渡到新主题
 });
 
 // 设置面板选项卡切换（基础/显示/场景）
@@ -1287,7 +1476,15 @@ document.querySelectorAll('#controls .tab').forEach(t => {
     document.querySelectorAll('#controls .tabpane').forEach(x => x.classList.remove('active'));
     t.classList.add('active');
     pane.classList.add('active');
+    el('paneSel').value = t.dataset.tab;   // 与移动端下拉选择器同步
   });
+});
+// 移动端下拉选择器：切换「基础/显示/场景」面板（功能与桌面选项卡等价）
+el('paneSel').addEventListener('change', (e) => {
+  const pane = document.getElementById('pane-' + e.target.value);
+  if (!pane) return;
+  document.querySelectorAll('#controls .tabpane').forEach(x => x.classList.remove('active'));
+  pane.classList.add('active');
 });
 
 el('loadBtn').addEventListener('click', () => {
@@ -1312,9 +1509,18 @@ el('delBtn').addEventListener('click', () => {
 });
 el('panelToggle').addEventListener('click', () => {
   const c = el('controls');
-  c.classList.toggle('hidden');
-  el('panelToggle').textContent = c.classList.contains('hidden') ? '⚙ 设置' : '✕ 收起';
+  const isOpen = c.classList.toggle('open');
+  el('panelToggle').textContent = isOpen ? '✕ 关闭' : '⚙ 设置';
+  el('ctrlShade').classList.toggle('show', isOpen);
 });
+// 覆盖式设置面板关闭（✕ / 遮罩点击 / Escape 共用）
+function closeSettings() {
+  el('controls').classList.remove('open');
+  el('ctrlShade').classList.remove('show');
+  el('panelToggle').textContent = '⚙ 设置';
+}
+el('ctrlClose').addEventListener('click', closeSettings);
+el('ctrlShade').addEventListener('click', closeSettings);
 
 // 攻略面板开关（✕ / 点击遮罩 / Escape 关闭）
 el('guideBtn').addEventListener('click', () => { el('guideOverlay').style.display = 'flex'; });
@@ -1325,6 +1531,9 @@ el('guideOverlay').addEventListener('click', (e) => {
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && el('guideOverlay').style.display === 'flex') {
     el('guideOverlay').style.display = 'none';
+  }
+  if (e.key === 'Escape' && el('controls').classList.contains('open')) {
+    closeSettings();
   }
 });
 
@@ -1401,6 +1610,15 @@ function updateInfoPanel() {
 let lastFrame = performance.now();
 let perfAdapt = 1; // 性能自适应：子步缩减系数
 
+// 移动端性能精简：减天体上限、降子步、关尾迹/轨道预测（最耗渲染两项）、纯色渲染
+if (IS_MOBILE) {
+  MAX_BODIES = 400;
+  MAX_SUBSTEPS = 12;
+  perfAdapt = 0.5;
+  trailOn = false; trailCk.checked = false;
+  orbitOn = false; orbitCk.checked = false;
+}
+
 function frame(now) {
   const dtFrame = Math.max(0, Math.min(0.05, (now - lastFrame) / 1000));
   lastFrame = now;
@@ -1455,6 +1673,7 @@ function frame(now) {
   drawKeplerOrbits();
   drawPrediction(now);
   for (const b of bodies) drawBody(b, now / 1000);
+  drawSelectionRing(now);
   drawFeedEvents(now);
   drawCreationArrow();
 
