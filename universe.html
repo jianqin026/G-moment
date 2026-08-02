@@ -151,6 +151,27 @@
   .guide-body th, .guide-body td { border: 1px solid var(--border); padding: 4px 8px; font-size: 12px; text-align: left; }
   .guide-body th { color: var(--text); background: var(--th-bg); }
   .guide-body td { color: var(--sub); }
+
+  /* 新手指引 */
+  .tour {
+    width: min(420px, 92vw);
+    background: var(--panel);
+    border: 1px solid var(--border); border-radius: 16px;
+    padding: 22px 24px 18px;
+  }
+  .tour-title { font-size: 15px; color: var(--text); display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .tour-skip { cursor: pointer; color: var(--sub); font-size: 13px; }
+  .tour-skip:hover { color: var(--warn); }
+  .tour-step { text-align: center; min-height: 158px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .tour-icon { font-size: 40px; margin-bottom: 12px; }
+  .tour-step h3 { color: var(--accent); font-size: 17px; margin-bottom: 10px; }
+  .tour-step p { color: var(--sub); font-size: 13px; line-height: 1.8; }
+  .tour-dots { display: flex; justify-content: center; gap: 6px; margin: 14px 0 16px; }
+  .tour-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
+  .tour-dots i.on { background: var(--accent); }
+  .tour-btns { display: flex; gap: 8px; }
+  .tour-btns button { flex: 1; padding: 8px 0; }
+  .tour-btns .tour-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
   input:focus-visible, select:focus-visible, button:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 1px;
   }
@@ -358,7 +379,21 @@
       <b>黑洞吞噬秀</b>：吸积盘预设调 10×，看粒子被吞、闪光连发。<br>
       <b>轨道口诀</b>：圆轨道速度 ≈ √(G·M/r)——质量×G 定引力源，距离定轨道尺度。
       <h3>⚡ 性能提示</h3>
-      天体上限 1200；卡顿先关<b>尾迹</b>（最耗渲染）。帧率自适应自动降子步，无需手动。
+      天体上限 1200（移动端 400）；卡顿先关<b>尾迹</b>（最耗渲染）。帧率自适应自动降子步，无需手动。<br>
+      <button id="tourBtn" style="margin-top:14px;width:100%">🚀 重新查看新手指引</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新手指引（首次打开自动弹出，可跳过） -->
+<div id="tourOverlay" class="overlay" style="display:none">
+  <div class="tour">
+    <div class="tour-title">🚀 新手指引 <span class="tour-skip" id="tourSkip">跳过 ›</span></div>
+    <div class="tour-step" id="tourStep"></div>
+    <div class="tour-dots" id="tourDots"></div>
+    <div class="tour-btns">
+      <button id="tourPrev">‹ 上一步</button>
+      <button id="tourNext" class="tour-primary">下一步 ›</button>
     </div>
   </div>
 </div>
@@ -1552,6 +1587,49 @@ el('fullscreenBtn').addEventListener('click', () => {
     el('fullscreenBtn').textContent = isFs ? '⛶ 退出全屏' : '⛶ 全屏';
   })
 );
+
+// ===== 新手指引（首次打开自动弹出；攻略底部可随时重看）=====
+const TOUR_STEPS = [
+  { icon: '🪐', title: '欢迎来到宇宙模拟器', body: '真实 n-body 万有引力模拟：速度合适 → 椭圆轨道；太快 → 逃逸；太慢 → 坠入恒星。' },
+  { icon: '🖱', title: '放置天体', body: '在空白处按住左键拖拽再松开，天体会按拖拽方向与力度获得初速度（松手前有箭头预览）。' },
+  { icon: '👆', title: '选中与删除', body: '点击天体选中它，右上角面板查看质量、速度与能量；右键或 Delete 删除。' },
+  { icon: '🔍', title: '缩放与平移', body: '滚轮或双指捏合缩放；Alt+左键 / 中键拖拽平移。手机端在「点击方式」里选 ✋平移画面即可单指拖动。' },
+  { icon: '🎛', title: '设置面板', body: '调整引力常数 G、时间倍速、天体质量；「显示」开关尾迹/轨道/主题，「场景」一键加载七大预设。' },
+  { icon: '🌌', title: '开始创造吧！', body: '试试螺旋星系、黑洞对撞，或亲手造一个太阳系。完整玩法随时在 📖 攻略中查看。' }
+];
+let tourIdx = 0;
+let tourWasPaused = false;
+function renderTour() {
+  const s = TOUR_STEPS[tourIdx];
+  el('tourStep').innerHTML = `<div class="tour-icon">${s.icon}</div><h3>${s.title}</h3><p>${s.body}</p>`;
+  el('tourDots').innerHTML = TOUR_STEPS.map((_, i) => `<i class="${i === tourIdx ? 'on' : ''}"></i>`).join('');
+  el('tourNext').textContent = tourIdx === TOUR_STEPS.length - 1 ? '🚀 开始探索' : '下一步 ›';
+  el('tourPrev').style.visibility = tourIdx === 0 ? 'hidden' : 'visible';
+}
+function openTour() {
+  tourIdx = 0;
+  tourWasPaused = paused;
+  if (!paused) { paused = true; el('pauseBtn').textContent = '▶ 继续'; }  // 引导时暂停模拟，聚焦教程
+  renderTour();
+  el('tourOverlay').style.display = 'flex';
+}
+function closeTour(remember) {
+  el('tourOverlay').style.display = 'none';
+  if (!tourWasPaused) { paused = false; el('pauseBtn').textContent = '⏸ 暂停'; }
+  if (remember) { try { localStorage.setItem('universe_tour_done', '1'); } catch (e) {} }
+}
+el('tourNext').addEventListener('click', () => {
+  if (tourIdx < TOUR_STEPS.length - 1) { tourIdx++; renderTour(); }
+  else closeTour(true);
+});
+el('tourPrev').addEventListener('click', () => { if (tourIdx > 0) { tourIdx--; renderTour(); } });
+el('tourSkip').addEventListener('click', () => closeTour(true));
+el('tourOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTour(true); });
+el('tourBtn').addEventListener('click', () => { el('guideOverlay').style.display = 'none'; openTour(); });
+// 首次访问自动弹出（已看过则不再打扰）
+try {
+  if (!localStorage.getItem('universe_tour_done')) openTour();
+} catch (e) { /* localStorage 不可用（隐私模式等）：不自动弹出 */ }
 el('guideClose').addEventListener('click', () => { el('guideOverlay').style.display = 'none'; });
 el('guideOverlay').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
