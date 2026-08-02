@@ -122,6 +122,15 @@
     padding: 8px 16px; font-size: 13px; cursor: pointer;
   }
   #guideBtn:hover { border-color: var(--accent); }
+
+  /* 全屏按钮（悬停 guideBtn 上方） */
+  #fullscreenBtn {
+    position: fixed; right: 14px; bottom: 56px; z-index: 30;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 8px 16px; font-size: 13px; cursor: pointer;
+  }
+  #fullscreenBtn:hover { border-color: var(--accent); }
   .overlay {
     position: fixed; inset: 0; z-index: 100;
     background: rgba(0, 0, 0, 0.55);
@@ -209,6 +218,7 @@
     .panesel { display: block; width: 100%; margin-bottom: 14px; }
     #stats .minor { display: none; }
     #guideBtn { right: 8px; bottom: 8px; }
+    #fullscreenBtn { right: 8px; bottom: 52px; }
   }
 </style>
 </head>
@@ -301,6 +311,7 @@
 <div id="feed"></div>
 
 <button id="guideBtn" title="打开攻略">📖 攻略</button>
+<button id="fullscreenBtn" title="切换全屏">⛶ 全屏</button>
 <button id="panelToggle" title="设置">⚙ 设置</button>
 <div id="guideOverlay" class="overlay" style="display:none">
   <div class="guide">
@@ -1524,6 +1535,23 @@ el('ctrlShade').addEventListener('click', closeSettings);
 
 // 攻略面板开关（✕ / 点击遮罩 / Escape 关闭）
 el('guideBtn').addEventListener('click', () => { el('guideOverlay').style.display = 'flex'; });
+
+// 全屏切换（⛶ 按钮；兼容 webkit 前缀；全屏状态同步按钮文字）
+el('fullscreenBtn').addEventListener('click', () => {
+  const d = document;
+  const isFs = d.fullscreenElement || d.webkitFullscreenElement;
+  if (!isFs) {
+    (d.documentElement.requestFullscreen || d.documentElement.webkitRequestFullscreen)?.call(d.documentElement);
+  } else {
+    (d.exitFullscreen || d.webkitExitFullscreen)?.call(d);
+  }
+});
+['fullscreenchange', 'webkitfullscreenchange'].forEach(ev =>
+  document.addEventListener(ev, () => {
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    el('fullscreenBtn').textContent = isFs ? '⛶ 退出全屏' : '⛶ 全屏';
+  })
+);
 el('guideClose').addEventListener('click', () => { el('guideOverlay').style.display = 'none'; });
 el('guideOverlay').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
